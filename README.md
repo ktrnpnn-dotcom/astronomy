@@ -55,10 +55,18 @@ git remote add origin https://github.com/ВАШ_АККАУНТ/ВАШ_РЕПОЗ
 git push -u origin main
 ```
 
-3. На GitHub откройте репозиторий → Settings → Pages.
-4. В разделе Build and deployment выберите Source: GitHub Actions.
-5. Дождитесь зелёного запуска workflow `Deploy GitHub Pages`.
-6. Адрес появится в Settings → Pages и в логе деплоя. Для обычного репозитория это:
+3. Соберите сайт с префиксом репозитория и положите папку `out` в ветку `gh-pages`. В корне сборки нужен пустой файл `.nojekyll`, иначе GitHub спрячет папку `_next`.
+
+```bash
+# Windows PowerShell, из корня проекта
+$env:GITHUB_ACTIONS = "true"
+$env:GITHUB_REPOSITORY = "ВАШ_АККАУНТ/ВАШ_РЕПОЗИТОРИЙ"
+npm run build
+```
+
+4. На GitHub откройте репозиторий → Settings → Pages.
+5. В Build and deployment выберите Source: Deploy from a branch, ветка `gh-pages`, папка `/ (root)`.
+6. Через минуту-две адрес появится в Settings → Pages. Для обычного репозитория это:
 
 ```text
 https://ВАШ_АККАУНТ.github.io/ВАШ_РЕПОЗИТОРИЙ/

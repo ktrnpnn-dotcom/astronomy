@@ -98,6 +98,7 @@ export function SkyCamera({
   const videoRef = useRef<HTMLVideoElement>(null);
   const samples = useRef<number[]>([]);
   const serial = useRef(0);
+  const shutterLock = useRef(false);
   const sheetDrag = useRef<number | null>(null);
   const sheetMoved = useRef(false);
   const [heading, setHeading] = useState<number | null>(null);

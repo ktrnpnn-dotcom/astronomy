@@ -973,9 +973,29 @@ input[type="range"] {
 
 .photo-viewer img {
   max-width: 100%;
-  max-height: calc(100dvh - 140px);
+  max-height: calc(100dvh - 180px);
   object-fit: contain;
   border-radius: 12px;
+}
+
+.photo-actions {
+  display: flex;
+  gap: 12px;
+  width: min(100%, 360px);
+}
+
+.photo-action {
+  flex: 1;
+  min-height: 48px;
+  border: 0.5px solid rgba(242, 242, 247, 0.42);
+  border-radius: 14px;
+  background: transparent;
+  color: #f2f2f7;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 15px;
 }
 
 .album-photo img {

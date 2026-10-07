@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { DEMO_CONSTELLATIONS } from "@/data/constellations";
 import { DEMO_ISS_TRACK } from "@/data/demoSky";
 import { edgePoint, projectBody } from "@/lib/projection";
 import type { ConstellationView, SkyObject } from "@/types/sky";
@@ -57,6 +56,7 @@ export function SkyOverlay({
   heading,
   viewAltitude,
   constellationView,
+  figures,
   showIssTrack,
   guidedId,
   onSelect,
@@ -65,6 +65,7 @@ export function SkyOverlay({
   heading: number;
   viewAltitude: number;
   constellationView: ConstellationView;
+  figures: { id: string; stars: { azimuth: number; altitude: number }[]; lines: [number, number][] }[];
   guideAzimuth: number | null;
   showIssTrack: boolean;
   guidedId: string | null;
@@ -104,18 +105,42 @@ export function SkyOverlay({
           <div className="horizon-line" style={{ top: horizon.y }} aria-hidden />
         </>
       ) : null}
-      {(constellationView === "lines" || constellationView === "stars" || constellationView === "full" || constellationView === "figures") && size.width
-        ? DEMO_CONSTELLATIONS.map((figure) => {
-            const projected = figure.stars.map((star) => projectBody(star.azimuth, star.altitude, heading, viewAltitude, size.width, size.height));
-            const order = figure.line ?? projected.map((_, index) => index);
-            const points = order.map((index) => `${projected[index].x},${projected[index].y}`).join(" ");
-            const lines = constellationView === "lines" || constellationView === "full";
+      {size.width && figures.length
+        ? figures.map((figure) => {
+            const projected = figure.stars.map((star) =>
+              projectBody(star.azimuth, star.altitude, heading, viewAltitude, size.width, size.height),
+            );
+            const showLines = constellationView === "lines" || constellationView === "figures" || constellationView === "full";
+            const showDots = constellationView === "stars" || constellationView === "full" || constellationView === "lines";
             return (
               <svg key={figure.id} className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden>
-                {lines ? <polyline points={points} fill="none" stroke="rgba(242,242,247,0.55)" strokeWidth="1" /> : null}
-                {projected.map((point, index) => (
-                      <circle key={index} cx={point.x} cy={point.y} r={index === 0 ? 2.4 : 1.5} fill="rgba(242,242,247,0.9)" />
-                  ))}
+                {showLines
+                  ? figure.lines.map(([from, to]) => {
+                      const a = projected[from];
+                      const b = projected[to];
+                      if (!a || !b) return null;
+                      if (Math.abs(a.dx - b.dx) > 70 || Math.abs(a.dy - b.dy) > 50) return null;
+                      if (a.degreesAway > 80 && b.degreesAway > 80) return null;
+                      return (
+                        <line
+                          key={`${from}-${to}`}
+                          x1={a.x}
+                          y1={a.y}
+                          x2={b.x}
+                          y2={b.y}
+                          stroke="rgba(242,242,247,0.72)"
+                          strokeWidth="1.25"
+                        />
+                      );
+                    })
+                  : null}
+                {showDots
+                  ? projected.map((point, index) =>
+                      point.degreesAway > 70 ? null : (
+                        <circle key={index} cx={point.x} cy={point.y} r={1.6} fill="rgba(242,242,247,0.92)" />
+                      ),
+                    )
+                  : null}
               </svg>
             );
           })

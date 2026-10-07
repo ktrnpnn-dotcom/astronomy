@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Lock, X } from "lucide-react";
+import { Lock, Share, Trash2, X } from "lucide-react";
 import { ObjectDisc } from "@/components/ObjectDisc";
 import { formatDay } from "@/lib/format";
 import type { Observation } from "@/types/sky";
@@ -20,7 +20,13 @@ function kindFor(id: string): DiscKind {
   return SHEETS.find((item) => item.id === id)?.kind ?? "moon";
 }
 
-export function Album({ observations }: { observations: Observation[] }) {
+export function Album({
+  observations,
+  onDelete,
+}: {
+  observations: Observation[];
+  onDelete: (id: string) => void;
+}) {
   const [openPhoto, setOpenPhoto] = useState<Observation | null>(null);
   const seen = observations.filter((item) => item.seen);
   const photos = seen.filter((item) => item.image);
@@ -33,6 +39,30 @@ export function Album({ observations }: { observations: Observation[] }) {
       delete document.documentElement.dataset.cover;
     };
   }, [openPhoto]);
+
+  async function sharePhoto(item: Observation) {
+    if (!item.image) return;
+    const response = await fetch(item.image);
+    const blob = await response.blob();
+    const file = new File([blob], "nebo.jpg", { type: blob.type || "image/jpeg" });
+    const text = `${item.name} · ${item.place}`;
+    try {
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: item.name, text });
+        return;
+      }
+      if (navigator.share) {
+        await navigator.share({ title: item.name, text });
+        return;
+      }
+    } catch {
+      return;
+    }
+    const link = document.createElement("a");
+    link.href = item.image;
+    link.download = "nebo.jpg";
+    link.click();
+  }
 
   async function shareAll() {
     const text = seen
@@ -115,6 +145,23 @@ export function Album({ observations }: { observations: Observation[] }) {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={openPhoto.image} alt={openPhoto.name} />
               <p className="footnote">{openPhoto.name}</p>
+              <div className="photo-actions">
+                <button type="button" className="photo-action" onClick={() => void sharePhoto(openPhoto)}>
+                  <Share size={20} strokeWidth={1.7} aria-hidden />
+                  Поделиться
+                </button>
+                <button
+                  type="button"
+                  className="photo-action"
+                  onClick={() => {
+                    onDelete(openPhoto.id);
+                    setOpenPhoto(null);
+                  }}
+                >
+                  <Trash2 size={20} strokeWidth={1.7} aria-hidden />
+                  Удалить
+                </button>
+              </div>
             </div>,
             document.body,
           )

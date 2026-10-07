@@ -10,6 +10,7 @@ import {
   SearchRiseSet,
 } from "astronomy-engine";
 import type { SkyObject, SkyObjectId, SkyObjectType } from "@/types/sky";
+import { STICK_FIGURES } from "@/data/stickFigures";
 
 interface Target {
   id: Exclude<SkyObjectId, "iss">;
@@ -116,6 +117,26 @@ export function getSkyObjects(
       isDemo: false,
     };
   });
+}
+
+export interface PlacedStick {
+  id: string;
+  name: string;
+  stars: { azimuth: number; altitude: number }[];
+  lines: [number, number][];
+}
+
+export function placeStickFigures(date: Date, latitude: number, longitude: number): PlacedStick[] {
+  const observer = new Observer(latitude, longitude, 0);
+  return STICK_FIGURES.map((figure) => ({
+    id: figure.id,
+    name: figure.name,
+    lines: figure.lines,
+    stars: figure.stars.map((star) => {
+      const horizon = Horizon(date, observer, star.ra, star.dec, "normal");
+      return { azimuth: horizon.azimuth, altitude: horizon.altitude };
+    }),
+  }));
 }
 
 export interface EveningMarks {

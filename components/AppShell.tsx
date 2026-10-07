@@ -204,7 +204,17 @@ export function AppShell() {
             onObserve={observe}
           />
         ) : null}
-        {tab === "album" ? <Album observations={settings.observations} /> : null}
+        {tab === "album" ? (
+          <Album
+            observations={settings.observations}
+            onDelete={(id) =>
+              patchSettings((current) => ({
+                ...current,
+                observations: current.observations.filter((item) => item.id !== id),
+              }))
+            }
+          />
+        ) : null}
         {tab === "profile" ? (
           <ProfileScreen
             cityId={settings.cityId}

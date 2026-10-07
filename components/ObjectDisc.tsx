@@ -137,9 +137,10 @@ function paintSphere(canvas: HTMLCanvasElement, kind: DiscKind, yaw: number, siz
       const [r, g, b] = photo ? samplePhoto(photo, lon, lat) : surface(kind, lon, lat, light);
       const shine = photo ? light ** 28 * 22 : kind === "venus" ? light ** 14 * 90 : kind === "moon" ? light ** 40 * 18 : light ** 22 * 36;
       const rim = light * light * (1 - nz) * (kind === "venus" ? 26 : 12);
-      data[offset] = Math.min(255, r * lit + shine + rim);
-      data[offset + 1] = Math.min(255, g * lit + shine * 0.95 + rim);
-      data[offset + 2] = Math.min(255, b * lit + shine * 0.8 + rim);
+      const turn = kind === "saturn" ? 0.8 + 0.2 * Math.cos(lon * 2) : 1;
+      data[offset] = Math.min(255, (r * lit + shine + rim) * turn);
+      data[offset + 1] = Math.min(255, (g * lit + shine * 0.95 + rim) * turn);
+      data[offset + 2] = Math.min(255, (b * lit + shine * 0.8 + rim) * turn);
       data[offset + 3] = Math.round(255 * cover);
     }
   }
@@ -148,72 +149,78 @@ function paintSphere(canvas: HTMLCanvasElement, kind: DiscKind, yaw: number, siz
   sphere.height = pixels;
   sphere.getContext("2d")?.putImageData(image, 0, 0);
   context.clearRect(0, 0, pixels, pixels);
-  if (kind === "saturn") strokeRing(context, center, radius, true);
+  if (kind === "saturn") strokeRing(context, center, radius, true, yaw);
   context.drawImage(sphere, 0, 0);
-  if (kind === "saturn") strokeRing(context, center, radius, false);
+  if (kind === "saturn") strokeRing(context, center, radius, false, yaw);
 }
 
-function strokeRing(context: CanvasRenderingContext2D, center: number, radius: number, back: boolean) {
+function strokeRing(context: CanvasRenderingContext2D, center: number, radius: number, back: boolean, yaw: number) {
   context.save();
   context.translate(center, center);
   context.rotate(-0.42);
   context.scale(1, 0.3);
   const start = back ? Math.PI * 0.08 : Math.PI * 1.08;
   const end = back ? Math.PI * 0.92 : Math.PI * 1.92;
-  const band = (inner: number, outer: number, color: string) => {
+  const steps = 28;
+  for (let step = 0; step < steps; step += 1) {
+    const a0 = start + ((end - start) * step) / steps;
+    const a1 = start + ((end - start) * (step + 1)) / steps;
+    const shine = 0.62 + 0.38 * Math.cos((a0 + a1) / 2 + yaw);
+    const color = back
+      ? `rgba(${Math.round(130 * shine)}, ${Math.round(104 * shine)}, ${Math.round(68 * shine)}, 0.55)`
+      : `rgba(${Math.round(236 * shine)}, ${Math.round(214 * shine)}, ${Math.round(168 * shine)}, 0.95)`;
     context.beginPath();
-    context.arc(0, 0, outer, start, end);
-    context.arc(0, 0, inner, end, start, true);
+    context.arc(0, 0, radius * 1.72, a0, a1);
+    context.arc(0, 0, radius * 1.18, a1, a0, true);
     context.fillStyle = color;
     context.fill();
-  };
-  band(radius * 1.18, radius * 1.72, back ? "rgba(150, 124, 82, 0.5)" : "rgba(236, 214, 168, 0.95)");
-  band(radius * 1.4, radius * 1.48, back ? "rgba(8, 8, 10, 0.45)" : "rgba(8, 8, 10, 0.78)");
+  }
+  context.beginPath();
+  context.arc(0, 0, radius * 1.48, start, end);
+  context.arc(0, 0, radius * 1.4, end, start, true);
+  context.fillStyle = back ? "rgba(8, 8, 10, 0.45)" : "rgba(8, 8, 10, 0.78)";
+  context.fill();
   context.restore();
 }
 
-function paintMeteor(canvas: HTMLCanvasElement, cool: boolean, size: number) {
+function paintMeteor(canvas: HTMLCanvasElement, cool: boolean, size: number, flight: number) {
   const ratio = Math.min(window.devicePixelRatio || 1, 2);
   const pixels = Math.max(48, Math.round(size * ratio));
-  canvas.width = pixels;
-  canvas.height = pixels;
+  if (canvas.width !== pixels) {
+    canvas.width = pixels;
+    canvas.height = pixels;
+  }
   const context = canvas.getContext("2d");
   if (!context) return;
   context.clearRect(0, 0, pixels, pixels);
-  const headX = pixels * 0.7;
-  const headY = pixels * 0.34;
-  const tailX = pixels * 0.06;
-  const tailY = pixels * 0.84;
-  const dust = cool ? "168, 198, 255" : "255, 214, 164";
-  const ionX = pixels * 0.02;
-  const ionY = pixels * 0.5;
-  context.lineCap = "round";
-  context.strokeStyle = `rgba(${dust}, 0.28)`;
-  context.lineWidth = pixels * 0.2;
-  context.beginPath();
-  context.moveTo(tailX, tailY);
-  context.quadraticCurveTo(pixels * 0.28, pixels * 0.7, headX, headY);
-  context.stroke();
-  const trail = context.createLinearGradient(tailX, tailY, headX, headY);
-  trail.addColorStop(0, "rgba(255,255,255,0)");
-  trail.addColorStop(0.45, `rgba(${dust}, 0.35)`);
-  trail.addColorStop(1, "rgba(255,248,236,0.9)");
-  context.strokeStyle = trail;
-  context.lineWidth = pixels * 0.045;
-  context.stroke();
-  context.strokeStyle = cool ? "rgba(186,214,255,0.55)" : "rgba(220,232,255,0.4)";
-  context.lineWidth = pixels * 0.012;
-  context.beginPath();
-  context.moveTo(ionX, ionY);
-  context.lineTo(headX, headY);
-  context.stroke();
-  const coma = context.createRadialGradient(headX, headY, 0, headX, headY, pixels * 0.16);
+  const dust = cool ? "176, 206, 255" : "255, 214, 164";
+  const point = (t: number) => ({
+    x: pixels * (-0.12 + t * 1.22),
+    y: pixels * (1.08 - t * 1.18),
+  });
+  const growth = 0.82 + Math.sin(Math.min(1, Math.max(0, flight)) * Math.PI) * 0.28;
+  for (let i = 16; i >= 0; i -= 1) {
+    const t = flight - i * 0.028;
+    if (t <= 0) continue;
+    const { x, y } = point(t);
+    const fade = (1 - i / 16) ** 1.4;
+    const radius = pixels * (0.012 + i * 0.004) * growth;
+    const glow = context.createRadialGradient(x, y, 0, x, y, radius * 3.2);
+    glow.addColorStop(0, `rgba(${dust}, ${0.14 * fade})`);
+    glow.addColorStop(1, "rgba(255,255,255,0)");
+    context.fillStyle = glow;
+    context.beginPath();
+    context.arc(x, y, radius * 3.2, 0, Math.PI * 2);
+    context.fill();
+  }
+  const head = point(flight);
+  const coma = context.createRadialGradient(head.x, head.y, 0, head.x, head.y, pixels * 0.11 * growth);
   coma.addColorStop(0, "#fff");
-  coma.addColorStop(0.35, cool ? "#d5e4ff" : "#fff0d4");
+  coma.addColorStop(0.28, cool ? "#d7e6ff" : "#fff1dc");
   coma.addColorStop(1, "rgba(255,255,255,0)");
   context.fillStyle = coma;
   context.beginPath();
-  context.arc(headX, headY, pixels * 0.16, 0, Math.PI * 2);
+  context.arc(head.x, head.y, pixels * 0.11 * growth, 0, Math.PI * 2);
   context.fill();
 }
 
@@ -237,11 +244,15 @@ export function ObjectDisc({
     let frame = 0;
     let alive = true;
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const draw = () => {
+    const started = performance.now();
+    const draw = (now = performance.now()) => {
       if (!alive) return;
-      if (kind === "meteor" || kind === "dragon") paintMeteor(canvas, kind === "dragon", size);
-      else {
-        if (spin && !reduced) angle.current += 0.012;
+      if (kind === "meteor" || kind === "dragon") {
+        const flight = reduced ? 0.55 : ((now - started) % 4600) / 4600;
+        paintMeteor(canvas, kind === "dragon", size, flight);
+        if (!reduced) frame = window.requestAnimationFrame(draw);
+      } else {
+        if (spin && !reduced) angle.current += kind === "moon" ? 0.005 : 0.004;
         paintSphere(canvas, kind, angle.current, size, photo.current);
       }
       if (spin && !reduced && kind !== "meteor" && kind !== "dragon") frame = window.requestAnimationFrame(draw);

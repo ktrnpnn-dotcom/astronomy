@@ -10,7 +10,7 @@ import { SkyOverlay } from "@/components/SkyOverlay";
 import { DEMO_HEADING, DEMO_OBJECTS, DEMO_PLACE, DEMO_TIME_LABEL, DEMO_VIEW_ALTITUDE } from "@/data/demoSky";
 import { PRIORITY_EVENT } from "@/data/mockEvents";
 import { altitudePhrase, directionPhrase, headingSpread, smoothAngle } from "@/lib/angles";
-import { getSkyObjects, nextVisibilityNote } from "@/lib/astronomy";
+import { getSkyObjects, nextVisibilityNote, placeStickFigures } from "@/lib/astronomy";
 import { requestOrientationPermission, subscribeOrientation } from "@/lib/deviceOrientation";
 import { formatDay, formatDistance, minutesPhrase } from "@/lib/format";
 import type { AccuracyStatus, GeoFix, Observation, SkyError, SkyObject, ViewMode } from "@/types/sky";
@@ -98,7 +98,8 @@ export function SkyCamera({
   const videoRef = useRef<HTMLVideoElement>(null);
   const samples = useRef<number[]>([]);
   const serial = useRef(0);
-  const shutterLock = useRef(false);
+  const sheetDrag = useRef<number | null>(null);
+  const sheetMoved = useRef(false);
   const [heading, setHeading] = useState<number | null>(null);
   const [manualHeading, setManualHeading] = useState(DEMO_HEADING);
   const [viewAltitude, setViewAltitude] = useState(DEMO_VIEW_ALTITUDE);
@@ -182,6 +183,13 @@ export function SkyCamera({
     if (!coords || calculatedAt == null) return [];
     return getSkyObjects(new Date(calculatedAt), coords.latitude, coords.longitude);
   }, [demo, coords, calculatedAt]);
+
+  const figures = useMemo(() => {
+    if (calculatedAt == null) return [];
+    const latitude = coords?.latitude ?? 55.7558;
+    const longitude = coords?.longitude ?? 37.6173;
+    return placeStickFigures(new Date(calculatedAt), latitude, longitude);
+  }, [coords, calculatedAt]);
 
   const mode: ViewMode = demo ? "demo" : heading != null && !forceManual ? "ar" : "manual";
   const activeHeading = mode === "ar" && heading != null ? heading : manualHeading;
@@ -407,6 +415,7 @@ export function SkyCamera({
           heading={activeHeading}
           viewAltitude={activeAltitude}
           constellationView={constellationView}
+          figures={figures}
           guideAzimuth={guiding ? (selected?.azimuth ?? guideAzimuth) : guideAzimuth}
           showIssTrack={false}
           guidedId={guiding ? selected?.id ?? null : null}
@@ -428,7 +437,34 @@ export function SkyCamera({
           className="flex min-h-11 w-full items-center justify-center"
           aria-expanded={details}
           aria-label={details ? "Свернуть лист" : "Развернуть лист"}
-          onClick={() => setDetails((open) => !open)}
+          onClick={() => {
+            if (sheetMoved.current) {
+              sheetMoved.current = false;
+              return;
+            }
+            setDetails((open) => !open);
+          }}
+          onPointerDown={(event) => {
+            sheetDrag.current = event.clientY;
+            sheetMoved.current = false;
+            event.currentTarget.setPointerCapture(event.pointerId);
+          }}
+          onPointerMove={(event) => {
+            if (sheetDrag.current == null) return;
+            const delta = event.clientY - sheetDrag.current;
+            if (Math.abs(delta) < 12) return;
+            sheetMoved.current = true;
+            if (delta > 42) {
+              setDetails(false);
+              sheetDrag.current = null;
+            } else if (delta < -42) {
+              setDetails(true);
+              sheetDrag.current = null;
+            }
+          }}
+          onPointerUp={() => {
+            sheetDrag.current = null;
+          }}
         >
           <span className="grabber my-0" />
         </button>

@@ -138,7 +138,7 @@ export function TodayFeed({
               >
                 <span className="story-ring" data-seen={seenStories.includes(item.id)}>
                   <span className="story-face">
-                    <ObjectDisc kind={item.kind} size={58} />
+                    <ObjectDisc kind={item.kind} size={58} spin={item.kind !== "meteor" && item.kind !== "dragon"} />
                   </span>
                 </span>
                 <span className="story-copy">

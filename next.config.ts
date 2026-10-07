@@ -15,6 +15,7 @@ function pagesBasePath(): string {
 const basePath = pagesBasePath();
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: ["192.168.3.26", "*.trycloudflare.com", "*.loca.lt"],
   output: "export",
   images: { unoptimized: true },
   trailingSlash: true,

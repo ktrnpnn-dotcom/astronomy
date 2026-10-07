@@ -63,7 +63,10 @@ export interface Observation {
   note: string;
   demo: boolean;
   place: string;
+  image?: string;
 }
+
+export type ConstellationView = "stars" | "lines" | "figures" | "full";
 
 export interface AppSettings {
   cityId: string;
@@ -72,4 +75,7 @@ export interface AppSettings {
   reminders: string[];
   observations: Observation[];
   showConstellations: boolean;
+  constellationView: ConstellationView;
+  quietNewsIds: string[];
+  sightings: number;
 }

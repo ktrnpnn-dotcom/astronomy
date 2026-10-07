@@ -6,9 +6,12 @@ import { BottomNav, type TabId } from "@/components/BottomNav";
 import { ProfileScreen } from "@/components/ProfileScreen";
 import { Sheet } from "@/components/Sheet";
 import { SkyCamera } from "@/components/SkyCamera";
+import { Splash } from "@/components/Splash";
 import { TodayFeed } from "@/components/TodayFeed";
+import type { WeekItem } from "@/data/weekSky";
 import { startLiveSession, stopStream, type LiveSession } from "@/lib/camera";
 import { CITIES, cityById } from "@/lib/cities";
+import { activeConstellationView } from "@/lib/ranks";
 import { getSettingsServerSnapshot, getSettingsSnapshot, patchSettings, subscribeSettings } from "@/lib/storage";
 import type { GeoFix, Observation, SkyError } from "@/types/sky";
 
@@ -16,6 +19,8 @@ type Phase = "intro" | "pending" | "error" | "view";
 
 export function AppShell() {
   const [tab, setTab] = useState<TabId>("today");
+  const [booting, setBooting] = useState(true);
+  const [guideAzimuth, setGuideAzimuth] = useState<number | null>(null);
   const settings = useSyncExternalStore(subscribeSettings, getSettingsSnapshot, getSettingsServerSnapshot);
   const [phase, setPhase] = useState<Phase>("intro");
   const [demo, setDemo] = useState(false);
@@ -34,6 +39,12 @@ export function AppShell() {
   useEffect(() => {
     document.documentElement.dataset.night = settings.nightVision ? "on" : "off";
   }, [settings.nightVision]);
+
+  useEffect(() => {
+    const delay = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 1200 : 4000;
+    const id = window.setTimeout(() => setBooting(false), delay);
+    return () => window.clearTimeout(id);
+  }, []);
 
   useEffect(() => {
     return () => stopStream(sessionRef.current?.stream);
@@ -108,21 +119,6 @@ export function AppShell() {
     setPhase("view");
   }
 
-  function openDemo() {
-    stopStream(sessionRef.current?.stream);
-    setSession(null);
-    setError(null);
-    setDemo(true);
-    setPhase("view");
-    setTab("map");
-  }
-
-  function closeMap() {
-    const back = origin.current === "map" ? "today" : origin.current;
-    leaveMap();
-    setTab(back);
-  }
-
   function chooseCity(cityId: string) {
     patchSettings((current) => ({ ...current, cityId }));
     setCityOpen(false);
@@ -135,34 +131,57 @@ export function AppShell() {
   function observe(observation: Observation) {
     patchSettings((current) => ({
       ...current,
+      sightings: observation.seen ? current.sightings + 1 : current.sightings,
       observations: [observation, ...current.observations].slice(0, 40),
     }));
   }
 
-  const immersive = tab === "map" && phase !== "intro";
+  function showSky(objectId: string | null, azimuth: number) {
+    setGuideAzimuth(azimuth);
+    void openLive(objectId, "today");
+  }
+
+  function seenNews(item: WeekItem) {
+    const at = new Date().toISOString();
+    observe({
+      id: `news-${item.id}-${at}`,
+      objectId: item.objectId ?? item.id,
+      name: item.title,
+      seen: true,
+      at,
+      note: item.look,
+      demo: false,
+      place: city.name,
+    });
+    patchSettings((current) => ({
+      ...current,
+      quietNewsIds: current.quietNewsIds.includes(item.id) ? current.quietNewsIds : [...current.quietNewsIds, item.id],
+    }));
+  }
 
   return (
     <div className="app-shell">
+      {booting ? <Splash /> : null}
       <div className="stage">
         {tab === "today" ? (
           <TodayFeed
             cityName={city.name}
             latitude={city.latitude}
             longitude={city.longitude}
-            cloudy={settings.cloudyDemo}
-            reminded={settings.reminders}
+            quietNewsIds={settings.quietNewsIds}
+            observations={settings.observations}
             onChangeCity={() => {
               setResumeAfterCity(false);
               setCityOpen(true);
             }}
-            onOpenProfile={() => changeTab("profile")}
-            onShowSky={(objectId) => void openLive(objectId, "today")}
-            onRemind={(eventId) =>
+            onShowSky={showSky}
+            onQuiet={(id) =>
               patchSettings((current) => ({
                 ...current,
-                reminders: current.reminders.includes(eventId) ? current.reminders : [...current.reminders, eventId],
+                quietNewsIds: current.quietNewsIds.includes(id) ? current.quietNewsIds : [...current.quietNewsIds, id],
               }))
             }
+            onSeenNews={seenNews}
           />
         ) : null}
         {tab === "map" ? (
@@ -173,12 +192,11 @@ export function AppShell() {
             stream={session?.stream ?? null}
             coords={demo ? null : place}
             placeLabel={place.label}
-            cloudy={settings.cloudyDemo}
+            cloudy={false}
             focusId={focusId}
-            showConstellations={settings.showConstellations}
+            guideAzimuth={guideAzimuth}
+            constellationView={activeConstellationView(settings.sightings, settings.constellationView)}
             onStart={() => void openLive(focusId, "map")}
-            onDemo={openDemo}
-            onClose={closeMap}
             onRetry={() => void openLive(focusId, origin.current)}
             onPickCity={() => {
               setResumeAfterCity(true);
@@ -192,21 +210,20 @@ export function AppShell() {
           <ProfileScreen
             cityId={settings.cityId}
             nightVision={settings.nightVision}
-            cloudy={settings.cloudyDemo}
-            constellations={settings.showConstellations}
+            constellationView={activeConstellationView(settings.sightings, settings.constellationView)}
+            sightings={settings.sightings}
             onCity={() => {
               setResumeAfterCity(false);
               setCityOpen(true);
             }}
             onNight={(nightVision) => patchSettings((current) => ({ ...current, nightVision }))}
-            onCloudy={(cloudyDemo) => patchSettings((current) => ({ ...current, cloudyDemo }))}
-            onConstellations={(showConstellations) => patchSettings((current) => ({ ...current, showConstellations }))}
+            onConstellationView={(constellationView) => patchSettings((current) => ({ ...current, constellationView }))}
           />
         ) : null}
       </div>
-      {immersive ? null : <BottomNav tab={tab} onChange={changeTab} />}
+      <BottomNav tab={tab} onChange={changeTab} />
       <Sheet open={cityOpen} title="Город" onClose={() => setCityOpen(false)}>
-        <h2 className="font-title text-[30px]">Город</h2>
+        <h2 className="title-2">Город</h2>
         <div className="mt-3 flex flex-col gap-2">
           {CITIES.map((item) => (
             <button key={item.id} type="button" className="btn btn-secondary justify-start" onClick={() => chooseCity(item.id)}>

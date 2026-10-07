@@ -1,10 +1,26 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { BearFigure } from "@/components/BearFigure";
 import { DEMO_CONSTELLATIONS } from "@/data/constellations";
 import { DEMO_ISS_TRACK } from "@/data/demoSky";
+import { URSA_STARS } from "@/data/ursa";
 import { edgePoint, projectBody } from "@/lib/projection";
-import type { SkyObject } from "@/types/sky";
+import type { ConstellationView, SkyObject } from "@/types/sky";
+
+function bearTransform(projected: { x: number; y: number }[]) {
+  const minLX = Math.min(...URSA_STARS.map((star) => star[0]));
+  const maxLX = Math.max(...URSA_STARS.map((star) => star[0]));
+  const minLY = Math.min(...URSA_STARS.map((star) => star[1]));
+  const maxLY = Math.max(...URSA_STARS.map((star) => star[1]));
+  const minPX = Math.min(...projected.map((star) => star.x));
+  const maxPX = Math.max(...projected.map((star) => star.x));
+  const minPY = Math.min(...projected.map((star) => star.y));
+  const maxPY = Math.max(...projected.map((star) => star.y));
+  const sx = (maxPX - minPX) / (maxLX - minLX || 1);
+  const sy = (maxPY - minPY) / (maxLY - minLY || 1);
+  return `translate(${minPX} ${minPY}) scale(${sx} ${sy}) translate(${-minLX} ${-minLY})`;
+}
 
 function Label({
   object,
@@ -31,21 +47,21 @@ function Label({
         <span
           className="block rounded-full"
           style={{
-            width: moon ? 34 : venus ? 12 : 8,
-            height: moon ? 34 : venus ? 12 : 8,
-            background: "var(--sky-ink, #e8eef6)",
-            boxShadow: venus ? "0 0 16px var(--sky-ink, #e8eef6)" : undefined,
+            width: moon ? 22 : venus ? 8 : 5,
+            height: moon ? 22 : venus ? 8 : 5,
+            background: "var(--sky-ink, #f2f2f7)",
+            boxShadow: moon || venus ? "0 0 10px rgba(242,242,247,0.85)" : undefined,
           }}
         />
         <span>
-          <span className="block text-sm text-[var(--sky-ink,#e8eef6)]">{object.name}</span>
+          <span className="sky-label">{object.name}</span>
           {moon && object.phaseName ? (
-            <span className="block text-[11px] opacity-80">
+            <span className="caption block opacity-80">
               {object.phaseName}
               {object.illumination != null ? ` · ${Math.round(object.illumination * 100)}%` : ""}
             </span>
           ) : null}
-          {object.isDemo ? <span className="block text-[11px] opacity-80">демо</span> : null}
+          {object.isDemo ? <span className="caption block opacity-80">демо</span> : null}
         </span>
       </span>
     </button>
@@ -56,7 +72,8 @@ export function SkyOverlay({
   objects,
   heading,
   viewAltitude,
-  showConstellations,
+  constellationView,
+  guideAzimuth,
   showIssTrack,
   guidedId,
   onSelect,
@@ -64,7 +81,8 @@ export function SkyOverlay({
   objects: SkyObject[];
   heading: number;
   viewAltitude: number;
-  showConstellations: boolean;
+  constellationView: ConstellationView;
+  guideAzimuth: number | null;
   showIssTrack: boolean;
   guidedId: string | null;
   onSelect: (id: string) => void;
@@ -90,22 +108,42 @@ export function SkyOverlay({
 
   return (
     <div ref={frameRef} className="relative h-full w-full">
+      <div
+        className="milky"
+        style={{ transform: `translateX(${-(((heading % 360) / 360) * 28)}%) rotate(-16deg)` }}
+        aria-hidden
+      />
       {horizon && horizon.y > -20 && horizon.y < size.height + 20 ? (
-        <div
-          className="pointer-events-none absolute right-6 left-6 h-px bg-white/35"
-          style={{ top: horizon.y }}
-          aria-hidden
-        />
+        <>
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-black/50" style={{ top: horizon.y }} aria-hidden />
+          <div className="pointer-events-none absolute right-0 left-0 h-px bg-white/45" style={{ top: horizon.y }} aria-hidden />
+        </>
       ) : null}
-      {showConstellations && size.width
+      {(constellationView === "lines" || constellationView === "stars" || constellationView === "full" || constellationView === "figures") && size.width
         ? DEMO_CONSTELLATIONS.map((figure) => {
-            const points = figure.stars
-              .map((star) => projectBody(star.azimuth, star.altitude, heading, viewAltitude, size.width, size.height))
-              .map((point) => `${point.x},${point.y}`)
-              .join(" ");
+            const projected = figure.stars.map((star) => projectBody(star.azimuth, star.altitude, heading, viewAltitude, size.width, size.height));
+            const order = figure.line ?? projected.map((_, index) => index);
+            const points = order.map((index) => `${projected[index].x},${projected[index].y}`).join(" ");
+            const lines = constellationView === "lines" || constellationView === "full";
+            const dots = constellationView === "stars" || constellationView === "lines" || constellationView === "full";
+            const figureOn = constellationView === "figures" || constellationView === "full";
+            const bear =
+              figure.id === "ursa" && projected.length === URSA_STARS.length
+                ? bearTransform(projected)
+                : null;
             return (
               <svg key={figure.id} className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden>
-                <polyline points={points} fill="none" stroke="rgba(232,238,246,0.35)" strokeWidth="1" />
+                {figureOn && bear ? (
+                  <g transform={bear}>
+                    <BearFigure />
+                  </g>
+                ) : null}
+                {lines ? <polyline points={points} fill="none" stroke="rgba(242,242,247,0.55)" strokeWidth="1" /> : null}
+                {dots
+                  ? projected.map((point, index) => (
+                      <circle key={index} cx={point.x} cy={point.y} r={index === 0 ? 2.4 : 1.5} fill="rgba(242,242,247,0.9)" />
+                    ))
+                  : null}
               </svg>
             );
           })
@@ -131,7 +169,7 @@ export function SkyOverlay({
               return <Label key={object.id} object={object} x={projected.x} y={projected.y} onSelect={onSelect} />;
             }
             const edge = edgePoint(projected.dx, projected.dy, size.width, size.height, 48);
-            const chipWidth = object.isDemo ? 168 : 132;
+            const chipWidth = object.isDemo ? 148 : 108;
             const left = Math.min(size.width - chipWidth - 8, Math.max(8, edge.x - chipWidth / 2));
             let top = Math.min(size.height - 40, Math.max(8, edge.y - 16));
             let guard = 0;
@@ -149,23 +187,33 @@ export function SkyOverlay({
               <button
                 key={object.id}
                 type="button"
-                className={`absolute flex items-center gap-1 rounded-full bg-black/45 px-2 py-1 text-xs text-[var(--sky-ink,#e8eef6)] ${object.id === guidedId ? "ring-1 ring-white/70" : ""}`}
+                className={`sky-label absolute flex min-h-11 items-center gap-1 bg-transparent ${object.id === guidedId ? "underline decoration-white/70 underline-offset-4" : ""}`}
                 style={{ left, top }}
                 onClick={() => onSelect(object.id)}
                 aria-label={`${object.name}, ${Math.round(projected.degreesAway)} градусов вне кадра`}
               >
-                <span style={{ transform: `rotate(${edge.angle}deg)` }} aria-hidden>
-                  →
-                </span>
+                <svg className={object.id === guidedId ? "find-arrow" : "find-arrow find-arrow-quiet"} style={{ transform: `rotate(${edge.angle}deg)` }} viewBox="0 0 28 28" aria-hidden>
+                  <path d="M4 14h16M14 7l8 7-8 7" fill="none" stroke="currentColor" strokeWidth="1.4" />
+                </svg>
                 {object.name}
-                {object.isDemo ? " · демо" : ""} · {Math.round(projected.degreesAway)}°
               </button>
             );
           })
         : null}
-      {showConstellations ? (
-        <p className="pointer-events-none absolute bottom-2 left-3 text-[11px] opacity-75">слой созвездий · демо</p>
-      ) : null}
+      {guideAzimuth != null && size.width
+        ? (() => {
+            const projected = projectBody(guideAzimuth, 22, heading, viewAltitude, size.width, size.height);
+            if (projected.inView) return null;
+            const edge = edgePoint(projected.dx, projected.dy, size.width, size.height, 56);
+            return (
+              <div className="find-mark" style={{ left: edge.x, top: edge.y }} aria-hidden>
+                <svg className="find-arrow" style={{ transform: `rotate(${edge.angle}deg)` }} viewBox="0 0 28 28">
+                  <path d="M4 14h16M14 7l8 7-8 7" fill="none" stroke="currentColor" strokeWidth="1.6" />
+                </svg>
+              </div>
+            );
+          })()
+        : null}
     </div>
   );
 }

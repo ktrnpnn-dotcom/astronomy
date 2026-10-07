@@ -1,47 +1,40 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Bell, MapPin, Settings } from "lucide-react";
-import { EventCard } from "@/components/EventCard";
+import { useEffect, useState } from "react";
+import { MapPin } from "lucide-react";
+import { ObjectDisc } from "@/components/ObjectDisc";
 import { Sheet } from "@/components/Sheet";
-import { SkyTimeline } from "@/components/SkyTimeline";
-import {
-  FEED_EVENTS,
-  MISS_REASONS,
-  PRIORITY_EVENT,
-  chanceLabel,
-  trafficLabel,
-  type SkyEvent,
-} from "@/data/mockEvents";
-import { getEveningMarks } from "@/lib/astronomy";
-import { greeting } from "@/lib/format";
+import { eventAt, ORIONIDS_ID, WEEK_ITEMS, type WeekItem } from "@/data/weekSky";
+import { getSkyObjects, twilightName } from "@/lib/astronomy";
+import { formatClock, formatStoryWhen } from "@/lib/format";
+import { readCloud, type CloudReport } from "@/lib/weather";
+import type { Observation } from "@/types/sky";
 
 export function TodayFeed({
   cityName,
   latitude,
   longitude,
-  cloudy,
-  reminded,
+  quietNewsIds,
+  observations,
   onChangeCity,
-  onOpenProfile,
   onShowSky,
-  onRemind,
+  onQuiet,
+  onSeenNews,
 }: {
   cityName: string;
   latitude: number;
   longitude: number;
-  cloudy: boolean;
-  reminded: string[];
+  quietNewsIds: string[];
+  observations: Observation[];
   onChangeCity: () => void;
-  onOpenProfile: () => void;
-  onShowSky: (objectId: string) => void;
-  onRemind: (eventId: string) => void;
+  onShowSky: (objectId: string | null, azimuth: number) => void;
+  onQuiet: (id: string) => void;
+  onSeenNews: (item: WeekItem) => void;
 }) {
   const [now, setNow] = useState<Date | null>(null);
+  const [cloud, setCloud] = useState<CloudReport | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
-  const [miss, setMiss] = useState(false);
-  const [reasonId, setReasonId] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
+  const [seenStories, setSeenStories] = useState<string[]>([]);
 
   useEffect(() => {
     const update = () => setNow(new Date());
@@ -50,16 +43,27 @@ export function TodayFeed({
     return () => window.clearInterval(id);
   }, []);
 
-  const marks = now ? getEveningMarks(now, latitude, longitude) : null;
-  const events = useMemo(() => [PRIORITY_EVENT, ...FEED_EVENTS], []);
-  const opened = events.find((event) => event.id === openId) ?? null;
-  const reason = MISS_REASONS.find((item) => item.id === reasonId) ?? null;
-  const heroTraffic = cloudy ? "gray" : PRIORITY_EVENT.traffic;
+  useEffect(() => {
+    let alive = true;
+    void readCloud(latitude, longitude).then((report) => {
+      if (alive) setCloud(report);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [latitude, longitude]);
 
-  function remind(event: SkyEvent) {
-    onRemind(event.id);
-    setToast("Сохранили напоминание в приложении. Системное уведомление веб-версия не отправит.");
-  }
+  const sky = now ? getSkyObjects(now, latitude, longitude) : [];
+  const moon = sky.find((item) => item.id === "moon");
+  const sun = sky.find((item) => item.id === "sun");
+  const twilight = sun ? twilightName(sun.altitude) : "вечер";
+  const feature = WEEK_ITEMS.find((item) => item.id === ORIONIDS_ID);
+  const featureQuiet = quietNewsIds.includes(ORIONIDS_ID);
+  const opened = WEEK_ITEMS.find((item) => item.id === openId) ?? null;
+  const cloudy = cloud?.cloudy === true;
+  const seenToday = now
+    ? observations.filter((item) => item.seen && item.at.slice(0, 10) === now.toISOString().slice(0, 10)).length
+    : 0;
 
   return (
     <div className="screen">
@@ -68,127 +72,124 @@ export function TodayFeed({
           <MapPin size={18} strokeWidth={1.7} aria-hidden />
           <span>{cityName}</span>
         </button>
-        <button type="button" className="icon-btn" onClick={onOpenProfile} aria-label="Профиль и настройки">
-          <Settings size={18} strokeWidth={1.7} aria-hidden />
-        </button>
       </header>
-      <p className="mt-4 text-sm text-[var(--muted)]">{now ? greeting(now) : "Здравствуйте"}</p>
-      <h1 className="font-title text-[40px] leading-none">Сегодня в небе</h1>
 
-      <article className="card mt-5">
-        <div className="flex items-center gap-2">
-          <span className="dot" data-traffic={heroTraffic} />
-          <p className="text-sm">
-            {cloudy ? "Сегодня лучше не планировать наблюдение" : "Сейчас стоит посмотреть вверх"}
-          </p>
+      <p className="footnote mt-4 text-[var(--muted)]">{twilight}{now ? ` · ${formatClock(now)}` : ""}</p>
+
+      {cloudy ? (
+        <article className="hero-night mt-4">
+          <p className="headline">Сейчас наблюдать не получится</p>
+          <p className="subhead mt-2 text-[var(--muted)]">Небо закрыто облаками. Ниже то, что можно поймать в ближайшие дни.</p>
+        </article>
+      ) : (
+        <>
+          <div className="stories mt-4" aria-label="На этой неделе">
+            {WEEK_ITEMS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className="story"
+                onClick={() => {
+                  setSeenStories((current) => (current.includes(item.id) ? current : [...current, item.id]));
+                  setOpenId(item.id);
+                }}
+              >
+                <span className="story-ring" data-seen={seenStories.includes(item.id)}>
+                  <span className="story-face">
+                    <ObjectDisc kind={item.kind} size={58} />
+                  </span>
+                </span>
+                <span className="story-copy">
+                  <span className="story-name">{item.story}</span>
+                  <span className="story-time">{now ? formatStoryWhen(eventAt(item, now), now) : ""}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+          {feature && !featureQuiet ? (
+            <article className="hero-night mt-6">
+              <p className="footnote text-[var(--good)]">Сейчас стоит посмотреть вверх</p>
+              <div className="mt-3 flex items-end justify-between gap-3">
+                <div>
+                  <h1 className="title-2">{feature.title}</h1>
+                  <p className="subhead mt-1">{feature.look}</p>
+                </div>
+                <ObjectDisc kind={feature.kind} size={84} spin />
+              </div>
+              <p className="footnote mt-3 text-[var(--muted)]">{feature.guide}</p>
+              <button type="button" className="btn btn-primary mt-4 w-full" onClick={() => onShowSky(feature.objectId, feature.azimuth)}>
+                Куда смотреть
+              </button>
+              <div className="mt-1 grid grid-cols-2">
+                <button type="button" className="btn-text" onClick={() => onSeenNews(feature)}>
+                  Вижу
+                </button>
+                <button type="button" className="btn-text" onClick={() => onQuiet(feature.id)}>
+                  Пропустить
+                </button>
+              </div>
+              {seenToday > 0 ? <p className="caption mt-2 text-[var(--muted)]">Сегодня вы уже отметили {seenToday}</p> : null}
+            </article>
+          ) : (
+            <article className="hero-night mt-6">
+              <p className="footnote text-[var(--good)]">Сейчас стоит посмотреть вверх</p>
+              <div className="mt-3 flex items-end justify-between gap-3">
+                <div>
+                  <h1 className="title-2">Сегодня как обычно Луна</h1>
+                  <p className="subhead mt-1">
+                    {moon?.phaseName ? `${moon.phaseName}${moon.illumination != null ? `, ${Math.round(moon.illumination * 100)}%` : ""}` : "Крупный светлый диск"}
+                  </p>
+                </div>
+                <ObjectDisc kind="moon" size={92} spin />
+              </div>
+              <p className="footnote mt-3 text-[var(--muted)]">
+                {moon?.isAboveHorizon ? "Диск уже над горизонтом." : "Диск появится позже."} Новости недели остаются в сторис.
+              </p>
+              <button type="button" className="btn btn-primary mt-4 w-full" onClick={() => onShowSky("moon", moon?.azimuth ?? 0)}>
+                Куда смотреть
+              </button>
+            </article>
+          )}
+        </>
+      )}
+
+      <section className="mt-6" aria-label="Ближайшие события">
+        <h2 className="title-2">Ближайшие</h2>
+        <div className="mt-3 flex flex-col gap-2">
+          {WEEK_ITEMS.map((item) => (
+            <button key={item.id} type="button" className="news-row" onClick={() => setOpenId(item.id)}>
+              <span>
+                <span className="caption block text-[var(--muted)]">{item.when}</span>
+                <span className="headline mt-1 block">{item.title}</span>
+              </span>
+              <span className="news-sky">
+                <ObjectDisc kind={item.kind} size={52} />
+              </span>
+            </button>
+          ))}
         </div>
-        <h2 className="font-title mt-3 text-[32px] leading-tight">{PRIORITY_EVENT.title}</h2>
-        <p className="mt-2 text-[15px]">
-          {PRIORITY_EVENT.windowLabel}
-          <span className="text-[var(--muted)]"> · {PRIORITY_EVENT.direction}</span>
-        </p>
-        <p className="mt-1 text-sm text-[var(--muted)]">
-          {PRIORITY_EVENT.equipment} · шанс {cloudy ? "низкий" : chanceLabel(PRIORITY_EVENT.chance)} · {trafficLabel(heroTraffic)}
-        </p>
-        <div className="mt-4 flex flex-col gap-2">
-          <button type="button" className="btn btn-primary" onClick={() => onShowSky(PRIORITY_EVENT.objectId)}>
-            Показать, куда смотреть
-          </button>
-          <button type="button" className="btn btn-secondary" onClick={() => remind(PRIORITY_EVENT)}>
-            <Bell size={16} aria-hidden />
-            {reminded.includes(PRIORITY_EVENT.id) ? "Напоминание сохранено" : "Напомнить"}
-          </button>
-        </div>
-        <p className="mt-3 text-sm leading-5 text-[var(--muted)]">
-          {cloudy
-            ? "Сегодня плотная облачность. Попробуйте посмотреть на Луну или сохраните событие на завтра."
-            : PRIORITY_EVENT.expectation}
-        </p>
-      </article>
-
-      <SkyTimeline marks={marks} cloudy={cloudy} onSelect={(id) => { setReasonId(null); setMiss(false); setOpenId(id); }} />
-
-      <section className="mt-6 flex flex-col gap-3 pb-4" aria-label="Лента событий">
-        {FEED_EVENTS.map((event) => (
-          <EventCard
-            key={event.id}
-            event={event}
-            onOpen={() => {
-              setReasonId(null);
-              setMiss(false);
-              setOpenId(event.id);
-            }}
-          />
-        ))}
-        <p className="px-1 text-xs leading-5 text-[var(--muted)]">
-          Карточки — учебные примеры. На карте Луна, Солнце, Венера, Юпитер и Сатурн считаются по времени и координатам.
-        </p>
       </section>
 
-      <Sheet
-        open={opened != null}
-        title={opened?.title ?? "Событие"}
-        onClose={() => {
-          setOpenId(null);
-          setMiss(false);
-          setReasonId(null);
-        }}
-      >
+      <Sheet open={opened != null} title={opened?.title ?? "Событие"} onClose={() => setOpenId(null)}>
         {opened ? (
           <div>
-            <p className="kicker">{opened.kicker}</p>
-            <h2 className="font-title mt-2 text-[30px] leading-tight">{opened.title}</h2>
-            <p className="mt-2 text-sm text-[var(--muted)]">
-              {opened.windowLabel} · {opened.direction} · {opened.equipment}
-            </p>
-            <p className="mt-3 text-[15px] leading-6">{opened.detail}</p>
-            <p className="mt-2 text-[15px] leading-6 text-[var(--muted)]">{opened.expectation}</p>
-            {miss ? (
-              <div className="mt-4">
-                <p className="text-sm">Почему не получилось?</p>
-                <div className="mt-2 flex flex-col gap-2">
-                  {MISS_REASONS.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      className="btn btn-secondary justify-start"
-                      onClick={() => setReasonId(item.id)}
-                    >
-                      {item.label}
-                    </button>
-                  ))}
-                </div>
-                {reason ? (
-                  <div className="mt-4">
-                    <p className="text-[15px] leading-6">{reason.text}</p>
-                    <p className="mt-2 text-[15px] leading-6">{opened.alternative}</p>
-                  </div>
-                ) : null}
-              </div>
-            ) : (
-              <div className="mt-5 flex flex-col gap-2">
-                <button type="button" className="btn btn-primary" onClick={() => onShowSky(opened.objectId)}>
-                  Показать, куда смотреть
-                </button>
-                <button type="button" className="btn btn-secondary" onClick={() => remind(opened)}>
-                  {reminded.includes(opened.id) ? "Напоминание сохранено" : "Напомнить"}
-                </button>
-                <button type="button" className="btn btn-secondary" onClick={() => setMiss(true)}>
-                  Не вижу
-                </button>
-              </div>
-            )}
+            <p className="footnote text-[var(--muted)]">{opened.when}</p>
+            <h2 className="title-2 mt-1">{opened.title}</h2>
+            <p className="body mt-3">{opened.look}</p>
+            <p className="subhead mt-2 text-[var(--muted)]">{opened.guide}</p>
+            <button
+              type="button"
+              className="btn btn-primary mt-5 w-full"
+              onClick={() => {
+                setOpenId(null);
+                onShowSky(opened.objectId, opened.azimuth);
+              }}
+            >
+              Куда смотреть
+            </button>
           </div>
         ) : null}
       </Sheet>
-      {toast ? (
-        <div className="toast" role="status">
-          <p className="text-sm leading-5">{toast}</p>
-          <button type="button" className="btn-quiet mt-1 px-0" onClick={() => setToast(null)}>
-            Понятно
-          </button>
-        </div>
-      ) : null}
     </div>
   );
 }

@@ -11,6 +11,19 @@ export function formatClock(date: Date): string {
   return date.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
 }
 
+const WEEKDAYS = ["вс", "пн", "вт", "ср", "чт", "пт", "сб"];
+const MONTHS = ["янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
+
+export function formatStoryWhen(at: Date, now: Date): string {
+  const clock = formatClock(at);
+  const day = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  const diff = Math.round((day(at) - day(now)) / 86_400_000);
+  if (diff <= 0) return clock;
+  if (diff === 1) return `Завтра, ${clock}`;
+  if (diff <= 6) return `${WEEKDAYS[at.getDay()]}, ${clock}`;
+  return `${at.getDate()} ${MONTHS[at.getMonth()]} ${clock}`;
+}
+
 export function formatDay(date: Date): string {
   return date.toLocaleDateString("ru-RU", {
     day: "numeric",

@@ -9,6 +9,9 @@ export const defaultSettings: AppSettings = {
   reminders: [],
   observations: [],
   showConstellations: false,
+  constellationView: "lines",
+  quietNewsIds: [],
+  sightings: 0,
 };
 
 export function loadSettings(): AppSettings {
@@ -22,6 +25,9 @@ export function loadSettings(): AppSettings {
       ...parsed,
       reminders: Array.isArray(parsed.reminders) ? parsed.reminders : [],
       observations: Array.isArray(parsed.observations) ? parsed.observations : [],
+      quietNewsIds: Array.isArray(parsed.quietNewsIds) ? parsed.quietNewsIds : [],
+      constellationView: parsed.constellationView ?? (parsed.showConstellations ? "lines" : "stars"),
+      sightings: typeof parsed.sightings === "number" ? parsed.sightings : 0,
     };
   } catch {
     return defaultSettings;

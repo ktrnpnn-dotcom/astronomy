@@ -37,20 +37,20 @@ export function ObservationResultSheet({
     >
       {variant === "seen" ? (
         <div>
-          <h2 className="font-title text-[30px] leading-tight">Вы увидели {seenName ?? objectName}</h2>
-          <p className="mt-2 text-[15px]">Сегодня, {dateLabel}</p>
-          <p className="mt-2 text-sm text-[var(--muted)]">Добавлено в альбом</p>
+          <h2 className="title-2">Вы увидели {seenName ?? objectName}</h2>
+          <p className="body mt-2">Сегодня, {dateLabel}</p>
+          <p className="footnote mt-2 text-[var(--muted)]">Добавлено в альбом</p>
         </div>
       ) : null}
       {variant === "info" ? (
         <div>
-          <h2 className="font-title text-[30px]">{objectName}</h2>
-          <p className="mt-3 text-[15px] leading-6">{info}</p>
+          <h2 className="title-2">{objectName}</h2>
+          <p className="body mt-3">{info}</p>
         </div>
       ) : null}
       {variant === "miss" ? (
         <div>
-          <h2 className="font-title text-[30px]">Не вижу</h2>
+          <h2 className="title-2">Не вижу</h2>
           <div className="mt-3 flex flex-col gap-2">
             {MISS_REASONS.map((item) => (
               <button key={item.id} type="button" className="btn btn-secondary justify-start" onClick={() => setReasonId(item.id)}>
@@ -60,8 +60,8 @@ export function ObservationResultSheet({
           </div>
           {reason ? (
             <div className="mt-4">
-              <p className="text-[15px] leading-6">{reason.text}</p>
-              {alternative ? <p className="mt-2 text-[15px] leading-6">{alternative}</p> : null}
+              <p className="body">{reason.text}</p>
+              {alternative ? <p className="body mt-2">{alternative}</p> : null}
             </div>
           ) : null}
         </div>

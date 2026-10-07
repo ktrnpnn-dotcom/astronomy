@@ -28,9 +28,9 @@ export function CalibrationSheet({
 }) {
   return (
     <Sheet open={open} title="Калибровка" onClose={onClose}>
-      <h2 className="font-title text-[30px]">Калибровка</h2>
-      <p className="mt-3 text-[15px] leading-6">Поверните телефон восьмёркой в воздухе.</p>
-      <p className="mt-2 text-sm leading-5 text-[var(--muted)]">
+      <h2 className="title-2">Калибровка</h2>
+      <p className="body mt-3">Поверните телефон восьмёркой в воздухе.</p>
+      <p className="subhead mt-2 text-[var(--muted)]">
         Даже после этого направление зависит от чехла, металла рядом и самих датчиков. Это ориентир, не астрономический прибор.
       </p>
       <p className="chip mt-4" role="status">

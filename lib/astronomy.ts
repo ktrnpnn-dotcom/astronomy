@@ -121,6 +121,16 @@ export function getSkyObjects(
 export interface EveningMarks {
   sunset: Date | null;
   civilDusk: Date | null;
+  nauticalDusk: Date | null;
+  astroDusk: Date | null;
+}
+
+export function twilightName(sunAltitude: number): string {
+  if (sunAltitude > 0) return "день";
+  if (sunAltitude > -6) return "гражданские сумерки";
+  if (sunAltitude > -12) return "навигационные сумерки";
+  if (sunAltitude > -18) return "астрономические сумерки";
+  return "ночь";
 }
 
 export function getEveningMarks(date: Date, latitude: number, longitude: number): EveningMarks {
@@ -129,9 +139,13 @@ export function getEveningMarks(date: Date, latitude: number, longitude: number)
   noon.setHours(12, 0, 0, 0);
   const sunset = SearchRiseSet(Body.Sun, observer, -1, noon, 1);
   const civilDusk = SearchAltitude(Body.Sun, observer, -1, noon, 1, -6);
+  const nauticalDusk = SearchAltitude(Body.Sun, observer, -1, noon, 1, -12);
+  const astroDusk = SearchAltitude(Body.Sun, observer, -1, noon, 1, -18);
   return {
     sunset: sunset?.date ?? null,
     civilDusk: civilDusk?.date ?? null,
+    nauticalDusk: nauticalDusk?.date ?? null,
+    astroDusk: astroDusk?.date ?? null,
   };
 }
 

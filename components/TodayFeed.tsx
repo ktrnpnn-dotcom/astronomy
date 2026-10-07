@@ -149,7 +149,7 @@ export function TodayFeed({
             ))}
           </div>
           {feature && !featureQuiet ? (
-            <article className="hero-night mt-6">
+            <article className="hero-night hero-sky mt-6">
               <p className="footnote text-[var(--good)]">Сейчас стоит посмотреть вверх</p>
               <div className="mt-3 flex items-end justify-between gap-3">
                 <div>

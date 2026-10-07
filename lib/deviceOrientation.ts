@@ -42,7 +42,9 @@ export function readOrientation(event: DeviceOrientationEvent): OrientationSampl
     absolute = true;
   }
 
-  const viewAltitude = typeof event.beta === "number" ? 90 - event.beta : null;
+  // Portrait iPhone: beta grows as the top of the phone tips back toward the sky.
+  // Altitude at the center of the frame is therefore beta − 90, not 90 − beta.
+  const viewAltitude = typeof event.beta === "number" ? event.beta - 90 : null;
   const roll = typeof event.gamma === "number" ? event.gamma : null;
   return { heading, viewAltitude, roll, absolute };
 }

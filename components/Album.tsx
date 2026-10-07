@@ -1,6 +1,8 @@
 "use client";
 
-import { Lock } from "lucide-react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+import { Lock, X } from "lucide-react";
 import { ObjectDisc } from "@/components/ObjectDisc";
 import { formatDay } from "@/lib/format";
 import type { Observation } from "@/types/sky";
@@ -19,9 +21,18 @@ function kindFor(id: string): DiscKind {
 }
 
 export function Album({ observations }: { observations: Observation[] }) {
+  const [openPhoto, setOpenPhoto] = useState<Observation | null>(null);
   const seen = observations.filter((item) => item.seen);
   const photos = seen.filter((item) => item.image);
   const extras = seen.filter((item) => !SHEETS.some((sheet) => sheet.id === item.objectId) && !item.image);
+
+  useEffect(() => {
+    if (!openPhoto) return;
+    document.documentElement.dataset.cover = "open";
+    return () => {
+      delete document.documentElement.dataset.cover;
+    };
+  }, [openPhoto]);
 
   async function shareAll() {
     const text = seen
@@ -51,11 +62,11 @@ export function Album({ observations }: { observations: Observation[] }) {
       {photos.length ? (
         <div className="album-grid mt-6">
           {photos.map((item) => (
-            <figure key={item.id} className="album-photo">
+            <button key={item.id} type="button" className="album-photo" onClick={() => setOpenPhoto(item)}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={item.image} alt={item.name} />
-              <figcaption className="caption">{item.name}</figcaption>
-            </figure>
+              <img src={item.image} alt="" />
+              <span className="caption">{item.name}</span>
+            </button>
           ))}
         </div>
       ) : null}
@@ -95,6 +106,19 @@ export function Album({ observations }: { observations: Observation[] }) {
           </article>
         ))}
       </div>
+      {openPhoto?.image
+        ? createPortal(
+            <div className="photo-viewer" role="dialog" aria-label={openPhoto.name}>
+              <button type="button" className="story-close" aria-label="Закрыть" onClick={() => setOpenPhoto(null)}>
+                <X size={22} strokeWidth={1.7} />
+              </button>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={openPhoto.image} alt={openPhoto.name} />
+              <p className="footnote">{openPhoto.name}</p>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

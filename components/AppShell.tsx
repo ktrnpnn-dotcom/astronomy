@@ -11,7 +11,6 @@ import { TodayFeed } from "@/components/TodayFeed";
 import type { WeekItem } from "@/data/weekSky";
 import { startLiveSession, stopStream, type LiveSession } from "@/lib/camera";
 import { CITIES, cityById } from "@/lib/cities";
-import { activeConstellationView } from "@/lib/ranks";
 import { getSettingsServerSnapshot, getSettingsSnapshot, patchSettings, subscribeSettings } from "@/lib/storage";
 import type { GeoFix, Observation, SkyError } from "@/types/sky";
 
@@ -195,7 +194,7 @@ export function AppShell() {
             cloudy={false}
             focusId={focusId}
             guideAzimuth={guideAzimuth}
-            constellationView={activeConstellationView(settings.sightings, settings.constellationView)}
+            constellationView={settings.constellationView}
             onStart={() => void openLive(focusId, "map")}
             onRetry={() => void openLive(focusId, origin.current)}
             onPickCity={() => {
@@ -210,7 +209,7 @@ export function AppShell() {
           <ProfileScreen
             cityId={settings.cityId}
             nightVision={settings.nightVision}
-            constellationView={activeConstellationView(settings.sightings, settings.constellationView)}
+            constellationView={settings.constellationView}
             sightings={settings.sightings}
             onCity={() => {
               setResumeAfterCity(false);

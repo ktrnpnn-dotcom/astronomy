@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { MapPin } from "lucide-react";
+import { createPortal } from "react-dom";
+import { MapPin, X } from "lucide-react";
 import { ObjectDisc } from "@/components/ObjectDisc";
-import { Sheet } from "@/components/Sheet";
 import { eventAt, ORIONIDS_ID, WEEK_ITEMS, type WeekItem } from "@/data/weekSky";
 import { getSkyObjects, twilightName } from "@/lib/astronomy";
 import { formatClock, formatStoryWhen } from "@/lib/format";
@@ -33,7 +33,8 @@ export function TodayFeed({
 }) {
   const [now, setNow] = useState<Date | null>(null);
   const [cloud, setCloud] = useState<CloudReport | null>(null);
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [storyIndex, setStoryIndex] = useState<number | null>(null);
+  const [storyProgress, setStoryProgress] = useState(0);
   const [seenStories, setSeenStories] = useState<string[]>([]);
 
   useEffect(() => {
@@ -53,17 +54,61 @@ export function TodayFeed({
     };
   }, [latitude, longitude]);
 
+  useEffect(() => {
+    if (storyIndex == null) return;
+    document.documentElement.dataset.story = "open";
+    return () => {
+      delete document.documentElement.dataset.story;
+    };
+  }, [storyIndex]);
+
+  useEffect(() => {
+    if (storyIndex == null) return;
+    const started = performance.now();
+    let frame = 0;
+    const tick = (time: number) => {
+      const ratio = Math.min(1, (time - started) / 15_000);
+      setStoryProgress(ratio);
+      if (ratio >= 1) {
+        const next = storyIndex + 1;
+        const item = WEEK_ITEMS[next];
+        if (!item) {
+          setStoryIndex(null);
+          return;
+        }
+        setStoryProgress(0);
+        setSeenStories((current) => (current.includes(item.id) ? current : [...current, item.id]));
+        setStoryIndex(next);
+        return;
+      }
+      frame = window.requestAnimationFrame(tick);
+    };
+    frame = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(frame);
+  }, [storyIndex]);
+
   const sky = now ? getSkyObjects(now, latitude, longitude) : [];
   const moon = sky.find((item) => item.id === "moon");
   const sun = sky.find((item) => item.id === "sun");
   const twilight = sun ? twilightName(sun.altitude) : "вечер";
   const feature = WEEK_ITEMS.find((item) => item.id === ORIONIDS_ID);
   const featureQuiet = quietNewsIds.includes(ORIONIDS_ID);
-  const opened = WEEK_ITEMS.find((item) => item.id === openId) ?? null;
+  const playing = storyIndex == null ? null : WEEK_ITEMS[storyIndex];
   const cloudy = cloud?.cloudy === true;
   const seenToday = now
     ? observations.filter((item) => item.seen && item.at.slice(0, 10) === now.toISOString().slice(0, 10)).length
     : 0;
+
+  function openStory(index: number) {
+    const item = WEEK_ITEMS[index];
+    if (!item) {
+      setStoryIndex(null);
+      return;
+    }
+    setStoryProgress(0);
+    setSeenStories((current) => (current.includes(item.id) ? current : [...current, item.id]));
+    setStoryIndex(index);
+  }
 
   return (
     <div className="screen">
@@ -84,15 +129,12 @@ export function TodayFeed({
       ) : (
         <>
           <div className="stories mt-4" aria-label="На этой неделе">
-            {WEEK_ITEMS.map((item) => (
+            {WEEK_ITEMS.map((item, index) => (
               <button
                 key={item.id}
                 type="button"
                 className="story"
-                onClick={() => {
-                  setSeenStories((current) => (current.includes(item.id) ? current : [...current, item.id]));
-                  setOpenId(item.id);
-                }}
+                onClick={() => openStory(index)}
               >
                 <span className="story-ring" data-seen={seenStories.includes(item.id)}>
                   <span className="story-face">
@@ -117,10 +159,7 @@ export function TodayFeed({
                 <ObjectDisc kind={feature.kind} size={84} spin />
               </div>
               <p className="footnote mt-3 text-[var(--muted)]">{feature.guide}</p>
-              <button type="button" className="btn btn-primary mt-4 w-full" onClick={() => onShowSky(feature.objectId, feature.azimuth)}>
-                Куда смотреть
-              </button>
-              <div className="mt-1 grid grid-cols-2">
+              <div className="mt-3 grid grid-cols-2">
                 <button type="button" className="btn-text" onClick={() => onSeenNews(feature)}>
                   Вижу
                 </button>
@@ -128,6 +167,9 @@ export function TodayFeed({
                   Пропустить
                 </button>
               </div>
+              <button type="button" className="btn btn-line mt-2 w-full" onClick={() => onShowSky(feature.objectId, feature.azimuth)}>
+                Куда смотреть
+              </button>
               {seenToday > 0 ? <p className="caption mt-2 text-[var(--muted)]">Сегодня вы уже отметили {seenToday}</p> : null}
             </article>
           ) : (
@@ -145,7 +187,7 @@ export function TodayFeed({
               <p className="footnote mt-3 text-[var(--muted)]">
                 {moon?.isAboveHorizon ? "Диск уже над горизонтом." : "Диск появится позже."} Новости недели остаются в сторис.
               </p>
-              <button type="button" className="btn btn-primary mt-4 w-full" onClick={() => onShowSky("moon", moon?.azimuth ?? 0)}>
+              <button type="button" className="btn btn-line mt-4 w-full" onClick={() => onShowSky("moon", moon?.azimuth ?? 0)}>
                 Куда смотреть
               </button>
             </article>
@@ -153,43 +195,44 @@ export function TodayFeed({
         </>
       )}
 
-      <section className="mt-6" aria-label="Ближайшие события">
-        <h2 className="title-2">Ближайшие</h2>
-        <div className="mt-3 flex flex-col gap-2">
-          {WEEK_ITEMS.map((item) => (
-            <button key={item.id} type="button" className="news-row" onClick={() => setOpenId(item.id)}>
-              <span>
-                <span className="caption block text-[var(--muted)]">{item.when}</span>
-                <span className="headline mt-1 block">{item.title}</span>
+      {playing && storyIndex != null
+        ? createPortal(
+            <div className="story-player" role="dialog" aria-label={playing.story}>
+          <div className="story-bars" aria-hidden>
+            {WEEK_ITEMS.map((item, index) => (
+              <span key={item.id}>
+                <span
+                  style={{
+                    width: index < storyIndex ? "100%" : index === storyIndex ? `${storyProgress * 100}%` : "0%",
+                  }}
+                />
               </span>
-              <span className="news-sky">
-                <ObjectDisc kind={item.kind} size={52} />
-              </span>
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <Sheet open={opened != null} title={opened?.title ?? "Событие"} onClose={() => setOpenId(null)}>
-        {opened ? (
-          <div>
-            <p className="footnote text-[var(--muted)]">{opened.when}</p>
-            <h2 className="title-2 mt-1">{opened.title}</h2>
-            <p className="body mt-3">{opened.look}</p>
-            <p className="subhead mt-2 text-[var(--muted)]">{opened.guide}</p>
+            ))}
+          </div>
+          <button type="button" className="story-close" aria-label="Закрыть" onClick={() => setStoryIndex(null)}>
+            <X size={22} strokeWidth={1.7} />
+          </button>
+          <div className="story-stage">
+            <ObjectDisc kind={playing.kind} size={168} spin />
+            <h2 className="title-2 mt-6">{playing.story}</h2>
+            <p className="footnote mt-1 text-[var(--muted)]">{now ? formatStoryWhen(eventAt(playing, now), now) : ""}</p>
+            <p className="body mt-4">{playing.look}</p>
+            <p className="subhead mt-2 text-[var(--muted)]">{playing.guide}</p>
             <button
               type="button"
-              className="btn btn-primary mt-5 w-full"
+              className="btn btn-line mt-6 w-full"
               onClick={() => {
-                setOpenId(null);
-                onShowSky(opened.objectId, opened.azimuth);
+                setStoryIndex(null);
+                onShowSky(playing.objectId, playing.azimuth);
               }}
             >
               Куда смотреть
             </button>
           </div>
-        ) : null}
-      </Sheet>
+        </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

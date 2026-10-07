@@ -1,22 +1,11 @@
 import type { ConstellationView } from "@/types/sky";
 
-export const CONSTELLATION_STEPS: { id: ConstellationView; min: number; label: string }[] = [
-  { id: "stars", min: 0, label: "Только звёзды" },
-  { id: "lines", min: 1, label: "Линии" },
-  { id: "figures", min: 3, label: "Фигуры" },
-  { id: "full", min: 6, label: "Фигуры и звёзды" },
+export const CONSTELLATION_STEPS: { id: ConstellationView; label: string }[] = [
+  { id: "stars", label: "Только звёзды" },
+  { id: "lines", label: "Линии" },
+  { id: "figures", label: "Фигуры" },
+  { id: "full", label: "Фигуры и звёзды" },
 ];
-
-export function viewUnlocked(sightings: number, view: ConstellationView): boolean {
-  const step = CONSTELLATION_STEPS.find((item) => item.id === view);
-  return sightings >= (step?.min ?? 0);
-}
-
-export function activeConstellationView(sightings: number, preferred: ConstellationView): ConstellationView {
-  if (viewUnlocked(sightings, preferred)) return preferred;
-  const open = CONSTELLATION_STEPS.filter((item) => sightings >= item.min);
-  return open[open.length - 1]?.id ?? "stars";
-}
 
 export const RANKS = [
   { name: "Красный карлик", min: 0 },

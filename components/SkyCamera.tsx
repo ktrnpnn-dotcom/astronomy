@@ -98,6 +98,7 @@ export function SkyCamera({
   const videoRef = useRef<HTMLVideoElement>(null);
   const samples = useRef<number[]>([]);
   const serial = useRef(0);
+  const shutterLock = useRef(false);
   const [heading, setHeading] = useState<number | null>(null);
   const [manualHeading, setManualHeading] = useState(DEMO_HEADING);
   const [viewAltitude, setViewAltitude] = useState(DEMO_VIEW_ALTITUDE);
@@ -113,6 +114,9 @@ export function SkyCamera({
   const [seenFocus, setSeenFocus] = useState(focusId);
   const [guiding, setGuiding] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [details, setDetails] = useState(true);
+  const [flash, setFlash] = useState(false);
+  const [flyingShot, setFlyingShot] = useState<string | null>(null);
   const [calibrating, setCalibrating] = useState(false);
   const [result, setResult] = useState<null | "seen" | "miss" | "info">(null);
   const [calculatedAt, setCalculatedAt] = useState<number | null>(null);
@@ -291,6 +295,10 @@ export function SkyCamera({
   const direction = selected ? directionPhrase(selected.azimuth) : null;
 
   function capture() {
+    if (shutterLock.current) return;
+    shutterLock.current = true;
+    navigator.vibrate?.(12);
+    setFlash(true);
     const video = videoRef.current;
     const canvas = document.createElement("canvas");
     const width = 720;
@@ -316,6 +324,8 @@ export function SkyCamera({
     const when = new Date();
     context.fillText(when.toLocaleString("ru-RU"), 32, height - 70);
     context.fillText(placeLabel, 32, height - 40);
+    const image = canvas.toDataURL("image/jpeg", 0.72);
+    setFlyingShot(image);
     onObserve({
       id: `photo-${serial.current++}`,
       objectId: selected?.id ?? "sky",
@@ -325,8 +335,13 @@ export function SkyCamera({
       note: "Снято на карте",
       demo: false,
       place: placeLabel,
-      image: canvas.toDataURL("image/jpeg", 0.72),
+      image,
     });
+    window.setTimeout(() => {
+      setFlash(false);
+      setFlyingShot(null);
+      shutterLock.current = false;
+    }, 700);
   }
 
   return (
@@ -348,9 +363,6 @@ export function SkyCamera({
               {coords?.source === "city" ? " · город" : ""}
             </p>
           </div>
-          <button type="button" className="icon-btn" onClick={() => void capture()} aria-label="Снимок для альбома">
-            <Camera size={18} strokeWidth={1.7} />
-          </button>
           <button
             type="button"
             className="btn-text px-2"
@@ -380,6 +392,16 @@ export function SkyCamera({
             ) : null}
           </div>
         ) : null}
+        <button type="button" className="sky-shutter" onClick={() => void capture()} aria-label="Снимок для альбома">
+          <Camera size={22} strokeWidth={1.7} />
+        </button>
+        {guiding && !details ? (
+          <button type="button" className="sky-dismiss" onClick={() => setGuiding(false)}>
+            Закрыть
+          </button>
+        ) : null}
+        {flash ? <div className="sky-flash" aria-hidden /> : null}
+        {flyingShot ? <img className="sky-shot" src={flyingShot} alt="" /> : null}
         <SkyOverlay
           objects={objects}
           heading={activeHeading}
@@ -404,13 +426,13 @@ export function SkyCamera({
         <button
           type="button"
           className="flex min-h-11 w-full items-center justify-center"
-          aria-expanded={sheetOpen}
-          aria-label={sheetOpen ? "Свернуть лист" : "Развернуть лист"}
-          onClick={() => setSheetOpen((open) => !open)}
+          aria-expanded={details}
+          aria-label={details ? "Свернуть лист" : "Развернуть лист"}
+          onClick={() => setDetails((open) => !open)}
         >
           <span className="grabber my-0" />
         </button>
-        {selected && direction ? (
+        {details && selected && direction ? (
           <>
             <p className="headline nums text-center">
               {selected.name}
@@ -463,8 +485,20 @@ export function SkyCamera({
                 ) : null}
               </div>
             ) : null}
-            <button type="button" className="btn btn-primary mt-3 w-full" onClick={() => setGuiding(true)}>
-              Найти
+            <button
+              type="button"
+              className="btn btn-line mt-3 w-full"
+              onClick={() => {
+                if (guiding) {
+                  setGuiding(false);
+                  setDetails(false);
+                  return;
+                }
+                setGuiding(true);
+                setDetails(false);
+              }}
+            >
+              {guiding ? "Закрыть" : "Найти"}
             </button>
             {sheetOpen ? (
               <>
@@ -482,12 +516,12 @@ export function SkyCamera({
               </>
             ) : null}
           </>
-        ) : (
+        ) : details ? (
           <>
             <p className="headline text-center">Сейчас смотреть почти не на что</p>
             <p className="footnote mt-1 text-center opacity-75">{fallbackNote}</p>
           </>
-        )}
+        ) : null}
       </div>
 
       <CalibrationSheet

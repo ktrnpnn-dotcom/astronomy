@@ -1,4 +1,3 @@
-import { BearFigure } from "@/components/BearFigure";
 import { URSA_LINE, URSA_STARS } from "@/data/ursa";
 import type { ConstellationView } from "@/types/sky";
 
@@ -15,8 +14,6 @@ const FIELD = [
 
 export function ConstellationSample({ view }: { view: ConstellationView }) {
   const lines = view === "lines" || view === "full";
-  const dots = view !== "figures";
-  const figure = view === "figures" || view === "full";
   const points = URSA_LINE.map((index) => URSA_STARS[index].join(",")).join(" ");
   return (
     <svg className="constellation-sample" viewBox="0 0 196 136" aria-hidden>
@@ -26,13 +23,10 @@ export function ConstellationSample({ view }: { view: ConstellationView }) {
       {FIELD.map(([x, y], index) => (
         <circle key={index} cx={x} cy={y} r="0.8" fill="rgba(242,242,247,0.35)" />
       ))}
-      {figure ? <BearFigure /> : null}
       {lines ? <polyline points={points} fill="none" stroke="rgba(242,242,247,0.72)" strokeWidth="0.9" /> : null}
-      {dots
-        ? URSA_STARS.map(([x, y], index) => (
-            <circle key={index} cx={x} cy={y} r={index === 0 || index === 6 ? 2.3 : 1.5} fill="#f4f4f2" />
-          ))
-        : null}
+      {URSA_STARS.map(([x, y], index) => (
+        <circle key={index} cx={x} cy={y} r={index === 0 || index === 6 ? 2.3 : 1.5} fill="#f4f4f2" />
+      ))}
     </svg>
   );
 }

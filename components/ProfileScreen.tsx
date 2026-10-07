@@ -1,10 +1,9 @@
 "use client";
 
-import { Lock } from "lucide-react";
 import { ConstellationSample } from "@/components/ConstellationSample";
 import { ObjectDisc } from "@/components/ObjectDisc";
 import { CITIES } from "@/lib/cities";
-import { CONSTELLATION_STEPS, rankFor, viewUnlocked } from "@/lib/ranks";
+import { CONSTELLATION_STEPS, rankFor } from "@/lib/ranks";
 import type { ConstellationView } from "@/types/sky";
 
 export function ProfileScreen({
@@ -57,10 +56,9 @@ export function ProfileScreen({
         </div>
         <div className="card">
           <p className="headline">Созвездия на карте</p>
-          <p className="footnote mt-1 text-[var(--muted)]">Вид открывается после наблюдений. На карте включён доступный.</p>
+          <p className="footnote mt-1 text-[var(--muted)]">На карте тот вид, который выбран здесь.</p>
           <div className="mt-3 grid grid-cols-2 gap-2">
             {CONSTELLATION_STEPS.map((item) => {
-              const open = viewUnlocked(sightings, item.id);
               const selected = constellationView === item.id;
               return (
                 <button
@@ -68,17 +66,11 @@ export function ProfileScreen({
                   type="button"
                   className="constellation-choice"
                   data-selected={selected}
-                  data-locked={!open}
                   aria-pressed={selected}
-                  disabled={!open}
                   onClick={() => onConstellationView(item.id)}
                 >
                   <ConstellationSample view={item.id} />
                   <span className="footnote mt-2 block">{item.label}</span>
-                  <span className="caption text-[var(--muted)]">
-                    {open ? "открыто" : `после ${item.min} «Вижу»`}
-                  </span>
-                  {open ? null : <Lock size={14} className="constellation-lock" aria-hidden />}
                 </button>
               );
             })}

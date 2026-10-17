@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Camera } from "lucide-react";
+import { AlertTriangle, Camera } from "lucide-react";
 import { CalibrationSheet } from "@/components/CalibrationSheet";
 import { CompassScale } from "@/components/CompassScale";
 import { ObservationResultSheet } from "@/components/ObservationResultSheet";
@@ -12,7 +12,7 @@ import { PRIORITY_EVENT } from "@/data/mockEvents";
 import { altitudePhrase, directionPhrase, headingSpread, smoothAngle } from "@/lib/angles";
 import { figureAim, getSkyObjects, nextVisibilityNote, placeBrightStars, placeStickFigures } from "@/lib/astronomy";
 import { requestOrientationPermission, subscribeOrientation } from "@/lib/deviceOrientation";
-import { formatDay, formatDistance, minutesPhrase } from "@/lib/format";
+import { formatDay, formatDistance, untilSetPhrase } from "@/lib/format";
 import type { AccuracyStatus, GeoFix, Observation, SkyError, SkyObject, ViewMode } from "@/types/sky";
 
 const STAR_FIELD = Array.from({ length: 42 }, (_, index) => ({
@@ -120,6 +120,7 @@ export function SkyCamera({
   const [flash, setFlash] = useState(false);
   const [flyingShot, setFlyingShot] = useState<string | null>(null);
   const [calibrating, setCalibrating] = useState(false);
+  const [sunTip, setSunTip] = useState(false);
   const [result, setResult] = useState<null | "seen" | "miss" | "info">(null);
   const [calculatedAt, setCalculatedAt] = useState<number | null>(null);
 
@@ -167,7 +168,7 @@ export function SkyCamera({
         setOrientationMiss(false);
       }
       if (sample.viewAltitude != null) {
-        setViewAltitude(Math.max(-15, Math.min(80, sample.viewAltitude)));
+        setViewAltitude(Math.max(-90, Math.min(90, sample.viewAltitude)));
       }
       if (sample.roll != null) setRoll(sample.roll);
     });
@@ -395,14 +396,11 @@ export function SkyCamera({
 
       <header className="relative z-10 shrink-0 px-2 pt-[max(4px,env(safe-area-inset-top))]">
         <div className="flex items-center gap-1 px-2">
-          <div className="min-w-0 flex-1">
-            <p className="headline">Карта неба</p>
-            <p className="caption truncate opacity-70">
-              {placeLabel}
-              {coords?.source === "gps" && coords.accuracy != null ? ` · GPS ±${Math.round(coords.accuracy)} м` : ""}
-              {coords?.source === "city" ? " · город" : ""}
-            </p>
-          </div>
+          <p className="caption min-w-0 flex-1 truncate opacity-80">
+            {placeLabel}
+            {coords?.source === "gps" && coords.accuracy != null ? ` · GPS ±${Math.round(coords.accuracy)} м` : ""}
+            {coords?.source === "city" ? " · город" : ""}
+          </p>
           <button
             type="button"
             className="btn-text px-2"
@@ -418,19 +416,10 @@ export function SkyCamera({
       </header>
 
       <div className="relative z-10 min-h-0 flex-1">
-        {(Boolean(sun && sun.altitude > 0) || cloudy) ? (
-          <div className="absolute inset-x-3 top-1 z-10 flex flex-col gap-2">
-            {sun && sun.altitude > 0 ? (
-              <p className="footnote px-2 opacity-90">
-                Не смотрите на Солнце через камеру или без сертифицированного солнечного фильтра.
-              </p>
-            ) : null}
-            {cloudy ? (
-              <p className="footnote px-2 opacity-90">
-                Сегодня плотная облачность. Попробуйте посмотреть на Луну или сохраните событие на завтра.
-              </p>
-            ) : null}
-          </div>
+        {cloudy ? (
+          <p className="footnote absolute inset-x-3 top-1 z-10 px-2 opacity-90">
+            Сегодня плотная облачность. Попробуйте посмотреть на Луну или сохраните событие на завтра.
+          </p>
         ) : null}
         <button type="button" className="sky-shutter" onClick={() => void capture()} aria-label="Снимок для альбома">
           <Camera size={22} strokeWidth={1.7} />
@@ -457,17 +446,38 @@ export function SkyCamera({
             setGuiding(true);
           }}
         />
-        {below ? (
+        {below && activeAltitude > -8 ? (
           <p className="subhead absolute inset-x-8 top-1/3 text-center">
-            Сейчас яркие объекты из этого набора уже за горизонтом.
+            Сейчас яркие объекты из этого набора уже за горизонтом. Опустите телефон — за землёй видно другую сторону неба.
           </p>
         ) : null}
       </div>
+      {sun && sun.altitude > 0 ? (
+        <div className="sun-layer">
+          {sunTip ? (
+            <button type="button" className="sun-tip-catch" aria-label="Скрыть подсказку" onClick={() => setSunTip(false)} />
+          ) : null}
+          <button
+            type="button"
+            className="sun-warn"
+            aria-expanded={sunTip}
+            aria-label="Осторожно: Солнце"
+            onClick={() => setSunTip((open) => !open)}
+          >
+            <AlertTriangle size={22} strokeWidth={1.8} aria-hidden />
+          </button>
+          {sunTip ? (
+            <p className="sun-tip footnote">
+              Не смотрите на Солнце через камеру или без сертифицированного солнечного фильтра.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
 
-      <div className="sky-sheet relative z-10 shrink-0 px-4 pt-1 pb-[max(8px,env(safe-area-inset-bottom))]">
+      <div className="sky-sheet relative z-10 shrink-0 px-3 pt-0 pb-[max(6px,env(safe-area-inset-bottom))]">
         <button
           type="button"
-          className="flex min-h-11 w-full items-center justify-center"
+          className="flex min-h-9 w-full items-center justify-center"
           aria-expanded={details}
           aria-label={details ? "Свернуть лист" : "Развернуть лист"}
           onClick={() => {
@@ -503,11 +513,11 @@ export function SkyCamera({
         </button>
         {details && mark && direction ? (
           <>
-            <p className="headline nums text-center">
+            <p className="caption nums text-center">
               {mark.name}
               {" · "}
-              {direction.name}
-              {selected?.minutesUntilSet != null ? ` · ${minutesPhrase(selected.minutesUntilSet)}` : ""}
+              {direction.on}
+              {selected?.minutesUntilSet != null ? ` · ${untilSetPhrase(selected.minutesUntilSet)}` : ""}
             </p>
             {guiding ? (
               <p className="footnote mt-1 text-center opacity-75">
@@ -544,8 +554,8 @@ export function SkyCamera({
                   <input
                     className="range-line mt-1 w-full"
                     type="range"
-                    min={-5}
-                    max={70}
+                    min={-90}
+                    max={90}
                     value={Math.round(manualAltitude)}
                     aria-label="Высота взгляда"
                     onChange={(event) => setManualAltitude(Number(event.target.value))}
@@ -560,7 +570,7 @@ export function SkyCamera({
             ) : null}
             <button
               type="button"
-              className="btn btn-line mt-3 w-full"
+              className="btn btn-line w-full"
               onClick={() => {
                 if (guiding) {
                   setGuiding(false);

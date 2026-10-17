@@ -4,7 +4,7 @@ import "./globals.css";
 
 const plex = IBM_Plex_Mono({
   subsets: ["latin", "cyrillic"],
-  weight: ["400", "600"],
+  weight: ["300", "400"],
 });
 
 export const metadata: Metadata = {

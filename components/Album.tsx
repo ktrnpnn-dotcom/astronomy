@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Lock, Share, Trash2, X } from "lucide-react";
+import { Share, Trash2, X } from "lucide-react";
 import { HudReveal } from "@/components/HudReveal";
 import { ObjectDisc } from "@/components/ObjectDisc";
 import { formatDay } from "@/lib/format";
@@ -69,7 +69,7 @@ export function Album({
     const text = seen
       .map((item) => `${formatDay(new Date(item.at))} · ${item.name} · ${item.place}`)
       .join("\n");
-    const payload = { title: "Небо сейчас", text: text || "В альбоме пока закрытые листы." };
+    const payload = { title: "Небо сейчас", text: text || "В альбоме пока только схемы — отметьте первую встречу." };
     if (navigator.share) {
       try {
         await navigator.share(payload);
@@ -89,7 +89,9 @@ export function Album({
           Поделиться
         </button>
       </div>
-      <p className="subhead mt-2 text-[var(--muted)]" data-hud>Закрытые листы ждут первую отметку. Открытые можно покрутить.</p>
+      <p className="subhead mt-2 text-[var(--muted)]" data-hud>
+        Листы ждут первую отметку. Открытые диски можно покрутить.
+      </p>
       {photos.length ? (
         <div className="album-grid mt-6">
           {photos.map((item) => (
@@ -101,31 +103,28 @@ export function Album({
           ))}
         </div>
       ) : null}
-      <div className="mt-6 flex flex-col gap-2 pb-6">
+      <div className="mt-6 flex flex-col pb-6">
         {SHEETS.map((sheet) => {
           const record = seen.find((item) => item.objectId === sheet.id);
           return (
-            <article key={sheet.id} className={record ? "card sky-card" : "card sky-card album-sealed"}>
-              <div className="flex items-center justify-between gap-3">
+            <article key={sheet.id} className={record ? "album-row" : "album-row album-sealed"}>
+              <div className="flex min-w-0 flex-1 items-center justify-between gap-3">
                 <div>
-                  <p className="footnote text-[var(--muted)]">{record ? formatDay(new Date(record.at)) : "закрыто"}</p>
-                  <h2 className="title-2 mt-1" data-hud>{sheet.title}</h2>
+                  <p className="footnote text-[var(--muted)]">{record ? formatDay(new Date(record.at)) : "ещё не встречались"}</p>
+                  <h2 className="title-2 mt-1">{sheet.title}</h2>
                   <p className="subhead mt-2">{record ? record.note : sheet.hint}</p>
                   {record ? <p className="footnote mt-2 text-[var(--muted)]">{record.place}</p> : null}
                 </div>
                 <div className="album-body">
-                  <div className={record ? undefined : "album-body-locked"}>
-                    <ObjectDisc kind={sheet.kind} size={92} spin={Boolean(record)} />
-                  </div>
-                  {record ? null : <Lock size={16} className="album-lock" aria-label="Закрыто" />}
+                  <ObjectDisc kind={sheet.kind} size={92} spin />
                 </div>
               </div>
             </article>
           );
         })}
         {extras.map((item) => (
-          <article key={item.id} className="card sky-card">
-            <div className="flex items-center justify-between gap-3">
+          <article key={item.id} className="album-row">
+            <div className="flex min-w-0 flex-1 items-center justify-between gap-3">
               <div>
                 <p className="footnote text-[var(--muted)]">{formatDay(new Date(item.at))}</p>
                 <h2 className="title-2 mt-1">{item.name}</h2>

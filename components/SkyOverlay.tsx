@@ -103,7 +103,7 @@ export function SkyOverlay({
     : null;
   const hunting = hunt != null;
   const visible = objects.filter((object) => {
-    if (!object.isAboveHorizon || object.id === "sun") return false;
+    if (object.id === "sun") return false;
     if (hunting) return object.id === hunt.id;
     return true;
   });
@@ -113,10 +113,15 @@ export function SkyOverlay({
       ? projectBody(hunt.azimuth, hunt.altitude, heading, viewAltitude, size.width, size.height)
       : null;
   const locked = Boolean(huntMark && huntMark.inView && huntMark.degreesAway < 9);
+  const huntChip = hunting && visible.some((object) => object.id === hunt.id);
+  const huntEdge =
+    hunting && huntMark && !huntMark.inView && !huntChip
+      ? edgePoint(huntMark.dx, huntMark.dy, size.width, size.height, 56)
+      : null;
   const placed: { left: number; top: number }[] = [];
 
   return (
-    <div ref={frameRef} className="relative h-full w-full">
+    <div ref={frameRef} className="relative h-full w-full" data-through={viewAltitude < -8 ? "on" : "off"}>
       {hunting ? null : (
         <div
           className="milky"
@@ -124,10 +129,10 @@ export function SkyOverlay({
           aria-hidden
         />
       )}
-      {horizon && horizon.y > -20 && horizon.y < size.height + 20 ? (
+      {horizon && horizon.y > -80 && horizon.y < size.height + 80 ? (
         <>
-          <div className="horizon-ground" style={{ top: horizon.y }} aria-hidden>
-            <span>земля</span>
+          <div className="horizon-ground" style={{ top: Math.max(-8, horizon.y) }} aria-hidden>
+            <span>{viewAltitude < -8 ? "за землёй" : "земля"}</span>
           </div>
           <div className="horizon-line" style={{ top: horizon.y }} aria-hidden />
         </>
@@ -146,8 +151,13 @@ export function SkyOverlay({
                   y: labeled.reduce((sum, point) => sum + point.y, 0) / labeled.length,
                 }
               : null;
+            const under = figure.stars.every((star) => star.altitude < 0);
             return (
-              <div key={figure.id} className="pointer-events-none absolute inset-0 text-[var(--sky-ink)]">
+              <div
+                key={figure.id}
+                className="pointer-events-none absolute inset-0 text-[var(--sky-ink)]"
+                style={{ opacity: under ? 0.55 : 1 }}
+              >
               <svg className="absolute inset-0 h-full w-full" aria-hidden>
                 {showLines
                   ? figure.lines.map(([from, to]) => {
@@ -164,7 +174,7 @@ export function SkyOverlay({
                           x2={b.x}
                           y2={b.y}
                           stroke="currentColor"
-                          strokeWidth="1.25"
+                          strokeWidth="0.8"
                         />
                       );
                     })
@@ -172,7 +182,7 @@ export function SkyOverlay({
                 {showDots
                   ? projected.map((point, index) =>
                       point.degreesAway > 70 ? null : (
-                        <circle key={index} cx={point.x} cy={point.y} r={1.6} fill="currentColor" />
+                        <circle key={index} cx={point.x} cy={point.y} r={1.15} fill="currentColor" />
                       ),
                     )
                   : null}
@@ -209,7 +219,11 @@ export function SkyOverlay({
         ? visible.map((object) => {
             const projected = projectBody(object.azimuth, object.altitude, heading, viewAltitude, size.width, size.height);
             if (projected.inView) {
-              return <Label key={object.id} object={object} x={projected.x} y={projected.y} onSelect={onSelect} />;
+              return (
+                <div key={object.id} style={{ opacity: object.isAboveHorizon ? 1 : 0.58 }}>
+                  <Label object={object} x={projected.x} y={projected.y} onSelect={onSelect} />
+                </div>
+              );
             }
             const edge = edgePoint(projected.dx, projected.dy, size.width, size.height, 48);
             const chipWidth = object.isDemo ? 148 : 108;
@@ -243,6 +257,13 @@ export function SkyOverlay({
             );
           })
         : null}
+      {huntEdge ? (
+        <div className="sky-guide" style={{ left: huntEdge.x, top: huntEdge.y }} aria-hidden>
+          <svg className="find-arrow find-arrow-hunt" style={{ transform: `rotate(${huntEdge.angle}deg)` }} viewBox="0 0 28 28">
+            <path d="M4 14h16M14 7l8 7-8 7" fill="none" stroke="currentColor" strokeWidth="1.8" />
+          </svg>
+        </div>
+      ) : null}
       {hunting ? <HuntReticle locked={locked} /> : null}
     </div>
   );

@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { MapPin, X } from "lucide-react";
 import { HudReveal } from "@/components/HudReveal";
 import { ObjectDisc } from "@/components/ObjectDisc";
+import { Sheet } from "@/components/Sheet";
 import { StudyList } from "@/components/StudyList";
 import { eventAt, ORIONIDS_ID, WEEK_ITEMS, type WeekItem } from "@/data/weekSky";
 import { getSkyObjects, twilightName } from "@/lib/astronomy";
@@ -38,6 +39,7 @@ export function TodayFeed({
   const [storyIndex, setStoryIndex] = useState<number | null>(null);
   const [storyProgress, setStoryProgress] = useState(0);
   const [seenStories, setSeenStories] = useState<string[]>([]);
+  const [huntOpen, setHuntOpen] = useState(false);
 
   useEffect(() => {
     const update = () => setNow(new Date());
@@ -113,22 +115,12 @@ export function TodayFeed({
       <p className="footnote mt-4 text-[var(--muted)]" data-hud>{twilight}{now ? ` · ${formatClock(now)}` : ""}</p>
 
       {cloudy ? (
-        <>
-          <article className="hero-night mt-4">
-            <p className="headline" data-hud>Небо закрыто облаками</p>
-            <p className="subhead mt-2 text-[var(--muted)]" data-hud>
-              Сторис спрятаны, пока облачность плотная. Можно всё равно выбрать цель и искать её на карте.
-            </p>
-          </article>
-          {now ? (
-            <StudyList
-              latitude={latitude}
-              longitude={longitude}
-              now={now}
-              onPick={(id, azimuth) => onShowSky(id, azimuth)}
-            />
-          ) : null}
-        </>
+        <article className="mt-4">
+          <p className="headline" data-hud>Небо закрыто облаками</p>
+          <p className="subhead mt-2 text-[var(--muted)]" data-hud>
+            Сторис спрятаны, пока облачность плотная. Цель всё равно можно выбрать и искать на карте.
+          </p>
+        </article>
       ) : (
         <>
           <div className="stories mt-4" aria-label="На этой неделе">
@@ -139,7 +131,7 @@ export function TodayFeed({
                 className="story"
                 onClick={() => openStory(index)}
               >
-                <span className="story-ring" data-seen={seenStories.includes(item.id)}>
+                <span className="story-ring" data-seen={seenStories.includes(item.id) ? "true" : "false"}>
                   <span className="story-face">
                     <ObjectDisc kind={item.kind} size={58} spin={item.kind !== "meteor" && item.kind !== "dragon"} />
                   </span>
@@ -152,7 +144,7 @@ export function TodayFeed({
             ))}
           </div>
           {feature && !featureQuiet ? (
-            <article className="hero-night hero-sky mt-6">
+            <article className="hero-night hero-sky hud-focus mt-6">
               <p className="footnote text-[var(--good)]" data-hud>Сейчас стоит посмотреть вверх</p>
               <div className="mt-3 flex items-end justify-between gap-3">
                 <div>
@@ -176,7 +168,7 @@ export function TodayFeed({
               {seenToday > 0 ? <p className="caption mt-2 text-[var(--muted)]">Сегодня вы уже отметили {seenToday}</p> : null}
             </article>
           ) : (
-            <article className="hero-night mt-6">
+            <article className="hero-night hud-focus mt-6">
               <p className="footnote text-[var(--good)]" data-hud>Сейчас стоит посмотреть вверх</p>
               <div className="mt-3 flex items-end justify-between gap-3">
                 <div>
@@ -197,6 +189,10 @@ export function TodayFeed({
           )}
         </>
       )}
+
+      <button type="button" className="btn btn-line mt-4 w-full" onClick={() => setHuntOpen(true)}>
+        Найти на карте
+      </button>
 
       {playing && storyIndex != null
         ? createPortal(
@@ -236,6 +232,22 @@ export function TodayFeed({
             document.body,
           )
         : null}
+
+      <Sheet open={huntOpen} title="Найти на карте" onClose={() => setHuntOpen(false)}>
+        {now ? (
+          <StudyList
+            latitude={latitude}
+            longitude={longitude}
+            now={now}
+            onPick={(id, azimuth) => {
+              setHuntOpen(false);
+              onShowSky(id, azimuth);
+            }}
+          />
+        ) : (
+          <p className="footnote text-[var(--muted)]">Считаем небо для этого города…</p>
+        )}
+      </Sheet>
     </HudReveal>
   );
 }

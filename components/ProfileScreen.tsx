@@ -33,7 +33,7 @@ export function ProfileScreen({
         {rank.name}
         {rank.next ? ` · дальше ${rank.next}` : ""}
       </p>
-      <div className="mt-6 flex flex-col gap-2">
+      <div className="profile-stack mt-6">
         <button type="button" className="card" onClick={onCity}>
           <p className="footnote text-[var(--muted)]">Город</p>
           <p className="headline mt-1">{city}</p>
@@ -41,8 +41,8 @@ export function ProfileScreen({
         </button>
         <div className="card flex items-center justify-between gap-3">
           <div>
-            <p className="headline" data-hud>Ночное зрение</p>
-            <p className="footnote mt-1 text-[var(--muted)]" data-hud>Тусклый красный, чтобы глаза оставались в темноте.</p>
+            <p className="headline">Ночное зрение</p>
+            <p className="footnote mt-1 text-[var(--muted)]">Тусклый красный, чтобы глаза оставались в темноте.</p>
           </div>
           <button
             type="button"
@@ -56,8 +56,8 @@ export function ProfileScreen({
           </button>
         </div>
         <div className="card">
-          <p className="headline" data-hud>Созвездия на карте</p>
-          <p className="footnote mt-1 text-[var(--muted)]" data-hud>На карте тот вид, который выбран здесь.</p>
+          <p className="headline">Созвездия на карте</p>
+          <p className="footnote mt-1 text-[var(--muted)]">На карте тот вид, который выбран здесь.</p>
           <div className="mt-3 grid grid-cols-2 gap-2">
             {CONSTELLATION_STEPS.map((item) => {
               const selected = constellationView === item.id;
@@ -81,7 +81,7 @@ export function ProfileScreen({
       <section className="mt-8">
         <h2 className="title-2">Виджет</h2>
         <p className="footnote mt-2 text-[var(--muted)]">Яркий вид на рабочий стол. Персеиды бывают в августе.</p>
-        <div className="perseid-widget mt-3">
+        <div className="perseid-widget mt-4">
           <div>
             <p className="caption">август · после полуночи</p>
             <p className="title-2 mt-2">Персеиды</p>

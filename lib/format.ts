@@ -41,6 +41,17 @@ export function minutesPhrase(minutes: number): string {
   return `${value} ${word}`;
 }
 
+/** How long the object stays up, without raw minute counts. */
+export function untilSetPhrase(minutes: number): string {
+  const value = Math.max(0, Math.round(minutes));
+  if (value < 20) return "скоро за горизонтом";
+  if (value < 75) return `сядет через ${value} мин`;
+  const hours = Math.round(value / 60);
+  if (hours === 1) return "сядет через час";
+  if (hours < 5) return `сядет через ${hours} ч`;
+  return "ещё высоко";
+}
+
 export function formatDistance(distanceKm: number, objectId: string): string {
   if (objectId === "moon") {
     const thousands = Math.round(distanceKm / 1000);

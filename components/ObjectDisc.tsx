@@ -188,6 +188,22 @@ function phosphor() {
   return night ? { r: 224, g: 52, b: 74, css: "rgba(224,52,74,0.95)" } : { r: 90, g: 255, b: 140, css: "rgba(90,255,140,0.95)" };
 }
 
+function trace(context: CanvasRenderingContext2D, points: ({ x: number; y: number } | null)[]) {
+  context.beginPath();
+  let drawing = false;
+  for (const point of points) {
+    if (!point) {
+      drawing = false;
+      continue;
+    }
+    if (!drawing) {
+      context.moveTo(point.x, point.y);
+      drawing = true;
+    } else context.lineTo(point.x, point.y);
+  }
+  context.stroke();
+}
+
 function paintWire(canvas: HTMLCanvasElement, kind: DiscKind, yaw: number, size: number) {
   const ratio = Math.min(window.devicePixelRatio || 1, 2);
   const pixels = Math.max(48, Math.round(size * ratio));
@@ -207,73 +223,96 @@ function paintWire(canvas: HTMLCanvasElement, kind: DiscKind, yaw: number, size:
     const z = Math.cos(lat) * Math.cos(lon);
     const rx = x * cos + z * sin;
     const rz = -x * sin + z * cos;
-    if (rz < 0.02) return null;
+    if (rz < 0.04) return null;
     return { x: center + rx * radius, y: center + y * radius, z: rz };
   };
   context.strokeStyle = ink.css;
   context.fillStyle = ink.css;
-  context.lineWidth = Math.max(1, pixels * 0.012);
   context.shadowColor = ink.css;
-  context.shadowBlur = pixels * 0.04;
-  for (let ring = -2; ring <= 2; ring += 1) {
-    const lat = (ring * Math.PI) / 7;
-    context.beginPath();
-    let drawing = false;
-    for (let step = 0; step <= 36; step += 1) {
-      const point = project((step / 36) * Math.PI * 2 + yaw * 0, lat);
-      if (!point) {
-        drawing = false;
-        continue;
-      }
-      if (!drawing) {
-        context.moveTo(point.x, point.y);
-        drawing = true;
-      } else context.lineTo(point.x, point.y);
-    }
-    context.stroke();
+  context.shadowBlur = pixels * 0.018;
+  context.lineWidth = Math.max(0.55, pixels * 0.006);
+  context.beginPath();
+  context.arc(center, center, radius, 0, Math.PI * 2);
+  context.stroke();
+  const parallels = kind === "jupiter" ? 11 : 9;
+  for (let ring = 1 - parallels; ring < parallels; ring += 1) {
+    if (ring === 0) continue;
+    const lat = (ring * Math.PI) / (parallels * 2);
+    const points = [];
+    for (let step = 0; step <= 64; step += 1) points.push(project((step / 64) * Math.PI * 2, lat));
+    trace(context, points);
   }
-  for (let mer = 0; mer < 6; mer += 1) {
-    const lon = (mer * Math.PI) / 3 + yaw;
-    context.beginPath();
-    let drawing = false;
-    for (let step = 0; step <= 24; step += 1) {
-      const lat = Math.PI * (-0.5 + step / 24);
-      const point = project(lon, lat);
-      if (!point) {
-        drawing = false;
-        continue;
-      }
-      if (!drawing) {
-        context.moveTo(point.x, point.y);
-        drawing = true;
-      } else context.lineTo(point.x, point.y);
-    }
-    context.stroke();
+  const meridians = kind === "venus" ? 14 : 12;
+  for (let mer = 0; mer < meridians; mer += 1) {
+    const lon = (mer * Math.PI * 2) / meridians + yaw;
+    const points = [];
+    for (let step = 0; step <= 40; step += 1) points.push(project(lon, Math.PI * (-0.5 + step / 40)));
+    trace(context, points);
   }
-  for (let y = 0; y < pixels; y += 3) {
-    for (let x = 0; x < pixels; x += 3) {
+  const terminator = [];
+  for (let step = 0; step <= 36; step += 1) {
+    const lat = Math.PI * (-0.48 + step / 36);
+    terminator.push(project(yaw + Math.PI / 2, lat));
+  }
+  context.globalAlpha = 0.55;
+  trace(context, terminator);
+  context.globalAlpha = 1;
+  if (kind === "moon") {
+    const craters: [number, number, number][] = [
+      [0.4, 0.18, 0.11],
+      [-0.55, 0.05, 0.08],
+      [0.15, -0.42, 0.14],
+      [-0.2, 0.48, 0.07],
+      [0.62, -0.22, 0.06],
+      [-0.35, -0.28, 0.09],
+    ];
+    for (const [lon0, lat0, span] of craters) {
+      const ring = [];
+      for (let step = 0; step <= 24; step += 1) {
+        const a = (step / 24) * Math.PI * 2;
+        ring.push(project(lon0 + yaw + Math.cos(a) * span, lat0 + Math.sin(a) * span * 0.7));
+      }
+      trace(context, ring);
+    }
+  }
+  if (kind === "venus") {
+    for (let wave = 0; wave < 4; wave += 1) {
+      const points = [];
+      for (let step = 0; step <= 48; step += 1) {
+        const t = step / 48;
+        points.push(project(yaw + wave * 0.7 + Math.sin(t * Math.PI * 3) * 0.35, Math.PI * (-0.45 + t * 0.9)));
+      }
+      context.globalAlpha = 0.45;
+      trace(context, points);
+    }
+    context.globalAlpha = 1;
+  }
+  for (let y = 0; y < pixels; y += 2) {
+    for (let x = 0; x < pixels; x += 2) {
       const nx = (x + 0.5 - center) / radius;
       const ny = (y + 0.5 - center) / radius;
-      if (nx * nx + ny * ny > 1) continue;
-      const nz = Math.sqrt(1 - nx * nx - ny * ny);
-      if ((x + y + Math.floor(yaw * 8)) % 7 === 0) {
-        context.globalAlpha = 0.18 + nz * 0.35;
-        context.fillRect(x, y, 1.4, 1.4);
-      }
+      const rr = nx * nx + ny * ny;
+      if (rr > 1) continue;
+      const nz = Math.sqrt(1 - rr);
+      const hatch = (x + y * 2 + Math.floor(yaw * 10)) % 5 === 0;
+      if (!hatch) continue;
+      context.globalAlpha = 0.12 + nz * 0.28;
+      context.fillRect(x, y, 1, 1);
     }
   }
   context.globalAlpha = 1;
-  const arm = pixels * 0.09;
-  context.lineWidth = Math.max(1.4, pixels * 0.02);
+  const arm = pixels * 0.07;
+  const pad = Math.max(3, pixels * 0.04);
+  context.lineWidth = Math.max(0.7, pixels * 0.008);
   const corners: [number, number, number, number][] = [
-    [4, 4, 4 + arm, 4],
-    [4, 4, 4, 4 + arm],
-    [pixels - 4, 4, pixels - 4 - arm, 4],
-    [pixels - 4, 4, pixels - 4, 4 + arm],
-    [4, pixels - 4, 4 + arm, pixels - 4],
-    [4, pixels - 4, 4, pixels - 4 - arm],
-    [pixels - 4, pixels - 4, pixels - 4 - arm, pixels - 4],
-    [pixels - 4, pixels - 4, pixels - 4, pixels - 4 - arm],
+    [pad, pad, pad + arm, pad],
+    [pad, pad, pad, pad + arm],
+    [pixels - pad, pad, pixels - pad - arm, pad],
+    [pixels - pad, pad, pixels - pad, pad + arm],
+    [pad, pixels - pad, pad + arm, pixels - pad],
+    [pad, pixels - pad, pad, pixels - pad - arm],
+    [pixels - pad, pixels - pad, pixels - pad - arm, pixels - pad],
+    [pixels - pad, pixels - pad, pixels - pad, pixels - pad - arm],
   ];
   context.beginPath();
   corners.forEach(([x1, y1, x2, y2]) => {
@@ -286,19 +325,19 @@ function paintWire(canvas: HTMLCanvasElement, kind: DiscKind, yaw: number, size:
     context.translate(center, center);
     context.rotate(-0.42);
     context.scale(1, 0.3);
-    context.beginPath();
-    context.arc(0, 0, radius * 1.72, 0, Math.PI * 2);
-    context.stroke();
-    context.beginPath();
-    context.arc(0, 0, radius * 1.18, 0, Math.PI * 2);
-    context.stroke();
+    context.lineWidth = Math.max(0.55, pixels * 0.006);
+    for (const scale of [1.18, 1.34, 1.5, 1.72]) {
+      context.beginPath();
+      context.arc(0, 0, radius * scale, 0, Math.PI * 2);
+      context.stroke();
+    }
     context.restore();
   }
 }
 
 function glitchWire(elapsed: number) {
-  const beat = elapsed % 7600;
-  return (beat >= 420 && beat < 500) || (beat >= 620 && beat < 690) || (beat >= 1180 && beat < 1580);
+  const beat = ((elapsed % 12800) + 12800) % 12800;
+  return (beat >= 90 && beat < 150) || (beat >= 210 && beat < 265) || (beat >= 640 && beat < 980);
 }
 
 function paintMeteor(canvas: HTMLCanvasElement, cool: boolean, size: number, flight: number) {
@@ -342,19 +381,50 @@ function paintMeteor(canvas: HTMLCanvasElement, cool: boolean, size: number, fli
   context.fill();
 }
 
+function paintWireMeteor(canvas: HTMLCanvasElement, size: number, flight: number) {
+  const ratio = Math.min(window.devicePixelRatio || 1, 2);
+  const pixels = Math.max(48, Math.round(size * ratio));
+  canvas.width = pixels;
+  canvas.height = pixels;
+  const context = canvas.getContext("2d");
+  if (!context) return;
+  context.clearRect(0, 0, pixels, pixels);
+  const ink = phosphor();
+  context.strokeStyle = ink.css;
+  context.fillStyle = ink.css;
+  context.shadowColor = ink.css;
+  context.shadowBlur = pixels * 0.04;
+  const start = { x: pixels * 0.12, y: pixels * 0.78 };
+  const end = {
+    x: pixels * (0.12 + flight * 0.74),
+    y: pixels * (0.78 - flight * 0.62),
+  };
+  context.lineWidth = Math.max(0.8, pixels * 0.012);
+  context.beginPath();
+  context.moveTo(start.x, start.y);
+  context.lineTo(end.x, end.y);
+  context.stroke();
+  context.beginPath();
+  context.arc(end.x, end.y, pixels * 0.035, 0, Math.PI * 2);
+  context.fill();
+}
+
 export function ObjectDisc({
   kind,
   size = 72,
   spin = false,
+  schematic = false,
 }: {
   kind: DiscKind;
   size?: number;
   spin?: boolean;
+  schematic?: boolean;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const angle = useRef(0.7);
   const drag = useRef<number | null>(null);
   const photo = useRef<Photo | null>(null);
+  const glitchShift = useRef(1800 + Math.random() * 11000);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -367,11 +437,12 @@ export function ObjectDisc({
       if (!alive) return;
       if (kind === "meteor" || kind === "dragon") {
         const flight = reduced ? 0.55 : ((now - started) % 4600) / 4600;
-        paintMeteor(canvas, kind === "dragon", size, flight);
+        if (schematic) paintWireMeteor(canvas, size, 0.22 + flight * 0.62);
+        else paintMeteor(canvas, kind === "dragon", size, flight);
         if (!reduced) frame = window.requestAnimationFrame(draw);
       } else {
         if (spin && !reduced) angle.current += kind === "moon" ? 0.005 : 0.004;
-        const wire = !reduced && glitchWire(now - started);
+        const wire = schematic || (!reduced && glitchWire(now - started + glitchShift.current));
         if (wire) paintWire(canvas, kind, angle.current, size);
         else paintSphere(canvas, kind, angle.current, size, photo.current);
       }
@@ -387,13 +458,14 @@ export function ObjectDisc({
       alive = false;
       window.cancelAnimationFrame(frame);
     };
-  }, [kind, size, spin]);
+  }, [kind, schematic, size, spin]);
 
   function redraw(next: number) {
     angle.current = next;
     const canvas = canvasRef.current;
     if (!canvas || kind === "meteor" || kind === "dragon") return;
-    paintSphere(canvas, kind, next, size, photo.current);
+    if (schematic) paintWire(canvas, kind, next, size);
+    else paintSphere(canvas, kind, next, size, photo.current);
   }
 
   function onPointerDown(event: PointerEvent<HTMLCanvasElement>) {

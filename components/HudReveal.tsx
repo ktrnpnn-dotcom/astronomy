@@ -18,7 +18,7 @@ export function HudReveal({ children, className }: { children: ReactNode; classN
       return;
     }
     const ordered = [...nodes].sort(
-      (a, b) => b.getBoundingClientRect().bottom - a.getBoundingClientRect().bottom,
+      (a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top,
     );
     ordered.forEach((node) => node.removeAttribute("data-ready"));
     let step = 0;

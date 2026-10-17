@@ -105,10 +105,13 @@ export function TodayFeed({
 
   return (
     <HudReveal className="screen">
-      <header className="flex items-center justify-between">
+      <header className="flex items-center justify-between gap-2">
         <button type="button" className="btn-quiet -ml-2 gap-1 px-2" onClick={onChangeCity} aria-label="Сменить локацию">
           <MapPin size={18} strokeWidth={1.7} aria-hidden />
           <span data-hud>{cityName}</span>
+        </button>
+        <button type="button" className="btn-quiet px-2" onClick={() => setHuntOpen(true)}>
+          Найти на карте
         </button>
       </header>
 
@@ -190,10 +193,6 @@ export function TodayFeed({
         </>
       )}
 
-      <button type="button" className="btn btn-line mt-4 w-full" onClick={() => setHuntOpen(true)}>
-        Найти на карте
-      </button>
-
       {playing && storyIndex != null
         ? createPortal(
             <div className="story-player" role="dialog" aria-label={playing.story}>
@@ -211,6 +210,18 @@ export function TodayFeed({
           <button type="button" className="story-close" aria-label="Закрыть" onClick={() => setStoryIndex(null)}>
             <X size={22} strokeWidth={1.7} />
           </button>
+          <button
+            type="button"
+            className="story-hit story-hit-prev"
+            aria-label="Предыдущая сторис"
+            onClick={() => openStory(storyIndex - 1)}
+          />
+          <button
+            type="button"
+            className="story-hit story-hit-next"
+            aria-label="Следующая сторис"
+            onClick={() => openStory(storyIndex + 1)}
+          />
           <div className="story-stage">
             <ObjectDisc kind={playing.kind} size={168} spin />
             <h2 className="title-2 mt-6">{playing.story}</h2>

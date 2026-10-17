@@ -81,7 +81,7 @@ export function ProfileScreen({
       <section className="mt-8">
         <h2 className="title-2">Виджет</h2>
         <p className="footnote mt-2 text-[var(--muted)]">Яркий вид на рабочий стол. Персеиды бывают в августе.</p>
-        <div className="perseid-widget mt-4">
+        <div className="perseid-widget hud-focus mt-4">
           <div>
             <p className="caption">август · после полуночи</p>
             <p className="title-2 mt-2">Персеиды</p>

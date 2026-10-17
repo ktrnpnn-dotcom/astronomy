@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { DEMO_ISS_TRACK } from "@/data/demoSky";
+import { directionPhrase } from "@/lib/angles";
+import { tickLock } from "@/lib/haptics";
 import { edgePoint, projectBody } from "@/lib/projection";
 import type { ConstellationView, SkyObject } from "@/types/sky";
 
@@ -86,6 +88,7 @@ export function SkyOverlay({
   onSelect: (id: string) => void;
 }) {
   const frameRef = useRef<HTMLDivElement>(null);
+  const wasLocked = useRef(false);
   const [size, setSize] = useState({ width: 0, height: 0 });
 
   useEffect(() => {
@@ -113,6 +116,10 @@ export function SkyOverlay({
       ? projectBody(hunt.azimuth, hunt.altitude, heading, viewAltitude, size.width, size.height)
       : null;
   const locked = Boolean(huntMark && huntMark.inView && huntMark.degreesAway < 9);
+  useEffect(() => {
+    if (locked && !wasLocked.current) tickLock();
+    wasLocked.current = locked;
+  }, [locked]);
   const huntChip = hunting && visible.some((object) => object.id === hunt.id);
   const huntEdge =
     hunting && huntMark && !huntMark.inView && !huntChip
@@ -257,11 +264,12 @@ export function SkyOverlay({
             );
           })
         : null}
-      {huntEdge ? (
+      {huntEdge && hunt ? (
         <div className="sky-guide" style={{ left: huntEdge.x, top: huntEdge.y }} aria-hidden>
           <svg className="find-arrow find-arrow-hunt" style={{ transform: `rotate(${huntEdge.angle}deg)` }} viewBox="0 0 28 28">
             <path d="M4 14h16M14 7l8 7-8 7" fill="none" stroke="currentColor" strokeWidth="1.8" />
           </svg>
+          <span className="sky-guide-az">{directionPhrase(hunt.azimuth).on}</span>
         </div>
       ) : null}
       {hunting ? <HuntReticle locked={locked} /> : null}

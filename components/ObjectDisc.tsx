@@ -185,7 +185,7 @@ function strokeRing(context: CanvasRenderingContext2D, center: number, radius: n
 
 function phosphor() {
   const night = document.documentElement.dataset.night === "on";
-  return night ? { r: 224, g: 52, b: 74, css: "rgba(224,52,74,0.95)" } : { r: 90, g: 255, b: 140, css: "rgba(90,255,140,0.95)" };
+  return night ? { r: 255, g: 107, b: 116, css: "rgba(255,107,116,0.95)" } : { r: 61, g: 255, b: 232, css: "rgba(61,255,232,0.95)" };
 }
 
 function trace(context: CanvasRenderingContext2D, points: ({ x: number; y: number } | null)[]) {

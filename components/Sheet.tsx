@@ -17,7 +17,7 @@ export function Sheet({
   return (
     <div className="sheet-root">
       <button type="button" className="sheet-backdrop" aria-label="Закрыть" onClick={onClose} />
-      <div className="sheet" role="dialog" aria-modal="true" aria-label={title}>
+      <div className="sheet hud-focus" role="dialog" aria-modal="true" aria-label={title}>
         <div className="grabber" />
         {children}
       </div>

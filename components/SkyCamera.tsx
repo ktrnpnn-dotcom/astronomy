@@ -395,15 +395,15 @@ export function SkyCamera({
       {mode === "manual" && stream ? <div className="absolute inset-0 bg-black/45" /> : null}
 
       <header className="relative z-10 shrink-0 px-2 pt-[max(4px,env(safe-area-inset-top))]">
-        <div className="flex items-center gap-1 px-2">
-          <p className="caption min-w-0 flex-1 truncate opacity-80">
+        <div className="sky-chrome px-1">
+          <p className="caption min-w-0 flex-1 truncate">
             {placeLabel}
             {coords?.source === "gps" && coords.accuracy != null ? ` · GPS ±${Math.round(coords.accuracy)} м` : ""}
             {coords?.source === "city" ? " · город" : ""}
           </p>
           <button
             type="button"
-            className="btn-text px-2"
+            className="btn-quiet px-2"
             onClick={() => {
               setCalibrating(true);
               void calibrate();
@@ -411,6 +411,22 @@ export function SkyCamera({
           >
             Калибровать
           </button>
+          {sun && sun.altitude > 0 ? (
+            <button
+              type="button"
+              className="sun-warn"
+              aria-expanded={sunTip}
+              aria-label="Осторожно: Солнце"
+              onClick={() => setSunTip((open) => !open)}
+            >
+              <AlertTriangle size={22} strokeWidth={1.8} aria-hidden />
+            </button>
+          ) : null}
+          {guiding ? (
+            <button type="button" className="sky-dismiss" onClick={() => setGuiding(false)}>
+              Закрыть
+            </button>
+          ) : null}
         </div>
         <CompassScale heading={activeHeading} />
       </header>
@@ -424,11 +440,6 @@ export function SkyCamera({
         <button type="button" className="sky-shutter" onClick={() => void capture()} aria-label="Снимок для альбома">
           <Camera size={22} strokeWidth={1.7} />
         </button>
-        {guiding && !details ? (
-          <button type="button" className="sky-dismiss" onClick={() => setGuiding(false)}>
-            Закрыть
-          </button>
-        ) : null}
         {flash ? <div className="sky-flash" aria-hidden /> : null}
         {flyingShot ? <img className="sky-shot" src={flyingShot} alt="" /> : null}
         <SkyOverlay
@@ -452,25 +463,12 @@ export function SkyCamera({
           </p>
         ) : null}
       </div>
-      {sun && sun.altitude > 0 ? (
+      {sun && sun.altitude > 0 && sunTip ? (
         <div className="sun-layer">
-          {sunTip ? (
-            <button type="button" className="sun-tip-catch" aria-label="Скрыть подсказку" onClick={() => setSunTip(false)} />
-          ) : null}
-          <button
-            type="button"
-            className="sun-warn"
-            aria-expanded={sunTip}
-            aria-label="Осторожно: Солнце"
-            onClick={() => setSunTip((open) => !open)}
-          >
-            <AlertTriangle size={22} strokeWidth={1.8} aria-hidden />
-          </button>
-          {sunTip ? (
-            <p className="sun-tip footnote">
-              Не смотрите на Солнце через камеру или без сертифицированного солнечного фильтра.
-            </p>
-          ) : null}
+          <button type="button" className="sun-tip-catch" aria-label="Скрыть подсказку" onClick={() => setSunTip(false)} />
+          <p className="sun-tip footnote">
+            Не смотрите на Солнце через камеру или без сертифицированного солнечного фильтра.
+          </p>
         </div>
       ) : null}
 

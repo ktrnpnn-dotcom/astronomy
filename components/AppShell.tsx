@@ -42,7 +42,7 @@ export function AppShell() {
   }, [settings.nightVision]);
 
   useEffect(() => {
-    const delay = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 1200 : 4000;
+    const delay = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 400 : 1400;
     const id = window.setTimeout(() => setBooting(false), delay);
     return () => window.clearTimeout(id);
   }, []);

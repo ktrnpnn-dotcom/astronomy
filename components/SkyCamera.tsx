@@ -10,7 +10,7 @@ import { SkyOverlay } from "@/components/SkyOverlay";
 import { DEMO_HEADING, DEMO_OBJECTS, DEMO_PLACE, DEMO_TIME_LABEL, DEMO_VIEW_ALTITUDE } from "@/data/demoSky";
 import { PRIORITY_EVENT } from "@/data/mockEvents";
 import { altitudePhrase, directionPhrase, headingSpread, smoothAngle } from "@/lib/angles";
-import { getSkyObjects, nextVisibilityNote, placeStickFigures } from "@/lib/astronomy";
+import { figureAim, getSkyObjects, nextVisibilityNote, placeBrightStars, placeStickFigures } from "@/lib/astronomy";
 import { requestOrientationPermission, subscribeOrientation } from "@/lib/deviceOrientation";
 import { formatDay, formatDistance, minutesPhrase } from "@/lib/format";
 import type { AccuracyStatus, GeoFix, Observation, SkyError, SkyObject, ViewMode } from "@/types/sky";
@@ -114,7 +114,7 @@ export function SkyCamera({
   const [orientationMiss, setOrientationMiss] = useState(false);
   const [pickedId, setPickedId] = useState<string | null>(null);
   const [seenFocus, setSeenFocus] = useState(focusId);
-  const [guiding, setGuiding] = useState(false);
+  const [guiding, setGuiding] = useState(Boolean(focusId));
   const [sheetOpen, setSheetOpen] = useState(false);
   const [details, setDetails] = useState(true);
   const [flash, setFlash] = useState(false);
@@ -126,6 +126,7 @@ export function SkyCamera({
   if (seenFocus !== focusId) {
     setSeenFocus(focusId);
     setPickedId(null);
+    setGuiding(Boolean(focusId));
   }
   const selectedId = pickedId ?? focusId;
 
@@ -192,6 +193,13 @@ export function SkyCamera({
     return placeStickFigures(new Date(calculatedAt), latitude, longitude);
   }, [coords, calculatedAt]);
 
+  const stars = useMemo(() => {
+    if (calculatedAt == null) return [];
+    const latitude = coords?.latitude ?? 55.7558;
+    const longitude = coords?.longitude ?? 37.6173;
+    return placeBrightStars(new Date(calculatedAt), latitude, longitude);
+  }, [coords, calculatedAt]);
+
   const mode: ViewMode = demo ? "demo" : heading != null && !forceManual ? "ar" : "manual";
   const activeHeading = mode === "ar" && heading != null ? heading : manualHeading;
   const activeAltitude = mode === "ar" ? viewAltitude : manualAltitude;
@@ -208,10 +216,33 @@ export function SkyCamera({
         : "manual";
 
   const targets = objects.filter((object) => object.isAboveHorizon && object.id !== "sun");
+  const huntFigure = figures.find((figure) => figure.id === selectedId) ?? null;
+  const huntStar = stars.find((star) => star.id === selectedId) ?? null;
   const selected =
     targets.find((object) => object.id === selectedId) ??
-    [...targets].sort((a, b) => b.visualPriority - a.visualPriority)[0] ??
-    null;
+    (huntFigure || huntStar
+      ? null
+      : [...targets].sort((a, b) => b.visualPriority - a.visualPriority)[0] ?? null);
+  const huntAim = huntFigure
+    ? { id: huntFigure.id, name: huntFigure.name, ...figureAim(huntFigure) }
+    : huntStar
+      ? { id: huntStar.id, name: huntStar.name, azimuth: huntStar.azimuth, altitude: huntStar.altitude }
+      : selected
+        ? { id: selected.id, name: selected.name, azimuth: selected.azimuth, altitude: selected.altitude }
+        : null;
+  const hunt = guiding && huntAim ? huntAim : null;
+  const overlayFigures = huntStar
+    ? [
+        ...figures,
+        {
+          id: huntStar.id,
+          name: huntStar.name,
+          stars: [{ azimuth: huntStar.azimuth, altitude: huntStar.altitude }],
+          lines: [] as [number, number][],
+        },
+      ]
+    : figures;
+  const mark = huntAim ?? selected;
   const sun = objects.find((object) => object.id === "sun");
   const focused = objects.find((object) => object.id === focusId);
   const focusHidden = Boolean(focused && !focused.isAboveHorizon && selected && selected.id !== focused.id);
@@ -301,7 +332,7 @@ export function SkyCamera({
     );
   }
 
-  const direction = selected ? directionPhrase(selected.azimuth) : null;
+  const direction = mark ? directionPhrase(mark.azimuth) : selected ? directionPhrase(selected.azimuth) : null;
 
   function capture() {
     if (shutterLock.current) return;
@@ -328,7 +359,7 @@ export function SkyCamera({
     context.fillRect(0, height - 168, width, 168);
     context.fillStyle = "#f2f2f7";
     context.font = "600 32px system-ui, sans-serif";
-    context.fillText(selected?.name ?? "Небо", 32, height - 108);
+    context.fillText(mark?.name ?? selected?.name ?? "Небо", 32, height - 108);
     context.font = "400 20px system-ui, sans-serif";
     const when = new Date();
     context.fillText(when.toLocaleString("ru-RU"), 32, height - 70);
@@ -416,10 +447,11 @@ export function SkyCamera({
           heading={activeHeading}
           viewAltitude={activeAltitude}
           constellationView={constellationView}
-          figures={figures}
-          guideAzimuth={guiding ? (selected?.azimuth ?? guideAzimuth) : guideAzimuth}
+          figures={overlayFigures}
+          guideAzimuth={guiding ? (huntAim?.azimuth ?? guideAzimuth) : guideAzimuth}
           showIssTrack={false}
-          guidedId={guiding ? selected?.id ?? null : null}
+          guidedId={guiding ? huntAim?.id ?? null : null}
+          hunt={hunt}
           onSelect={(id) => {
             setPickedId(id);
             setGuiding(true);
@@ -469,15 +501,19 @@ export function SkyCamera({
         >
           <span className="grabber my-0" />
         </button>
-        {details && selected && direction ? (
+        {details && mark && direction ? (
           <>
             <p className="headline nums text-center">
-              {selected.name}
+              {mark.name}
               {" · "}
               {direction.name}
-              {selected.minutesUntilSet != null ? ` · ${minutesPhrase(selected.minutesUntilSet)}` : ""}
+              {selected?.minutesUntilSet != null ? ` · ${minutesPhrase(selected.minutesUntilSet)}` : ""}
             </p>
-            {guiding ? <p className="footnote mt-1 text-center opacity-75">{guideFor(selected)}</p> : null}
+            {guiding ? (
+              <p className="footnote mt-1 text-center opacity-75">
+                {selected ? guideFor(selected) : `Повернитесь на ${direction.name}. В кадре только эта цель.`}
+              </p>
+            ) : null}
             {focusHidden && focused ? (
               <p className="footnote mt-1 text-center opacity-75">
                 Сейчас {focused.name} уже за горизонтом. {fallbackNote}

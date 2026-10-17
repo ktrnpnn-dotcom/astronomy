@@ -10,6 +10,7 @@ import {
   SearchRiseSet,
 } from "astronomy-engine";
 import type { SkyObject, SkyObjectId, SkyObjectType } from "@/types/sky";
+import { BRIGHT_STARS } from "@/data/brightStars";
 import { STICK_FIGURES } from "@/data/stickFigures";
 
 interface Target {
@@ -137,6 +138,29 @@ export function placeStickFigures(date: Date, latitude: number, longitude: numbe
       return { azimuth: horizon.azimuth, altitude: horizon.altitude };
     }),
   }));
+}
+
+export function placeBrightStars(date: Date, latitude: number, longitude: number) {
+  const observer = new Observer(latitude, longitude, 0);
+  return BRIGHT_STARS.map((star) => {
+    const horizon = Horizon(date, observer, star.ra, star.dec, "normal");
+    return {
+      id: star.id,
+      name: star.name,
+      azimuth: horizon.azimuth,
+      altitude: horizon.altitude,
+    };
+  });
+}
+
+export function figureAim(figure: PlacedStick): { azimuth: number; altitude: number } {
+  const visible = figure.stars.filter((star) => star.altitude > -8);
+  const stars = visible.length ? visible : figure.stars;
+  const x = stars.reduce((sum, star) => sum + Math.cos((star.azimuth * Math.PI) / 180), 0);
+  const y = stars.reduce((sum, star) => sum + Math.sin((star.azimuth * Math.PI) / 180), 0);
+  const azimuth = ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+  const altitude = stars.reduce((sum, star) => sum + star.altitude, 0) / stars.length;
+  return { azimuth, altitude };
 }
 
 export interface EveningMarks {

@@ -51,6 +51,18 @@ function Label({
   );
 }
 
+function HuntReticle({ locked }: { locked: boolean }) {
+  return (
+    <div className="hunt-reticle" data-lock={locked} aria-hidden>
+      <span className="hunt-arm hunt-tl" />
+      <span className="hunt-arm hunt-tr" />
+      <span className="hunt-arm hunt-bl" />
+      <span className="hunt-arm hunt-br" />
+      <span className="hunt-dot" />
+    </div>
+  );
+}
+
 export function SkyOverlay({
   objects,
   heading,
@@ -59,16 +71,18 @@ export function SkyOverlay({
   figures,
   showIssTrack,
   guidedId,
+  hunt,
   onSelect,
 }: {
   objects: SkyObject[];
   heading: number;
   viewAltitude: number;
   constellationView: ConstellationView;
-  figures: { id: string; stars: { azimuth: number; altitude: number }[]; lines: [number, number][] }[];
+  figures: { id: string; name: string; stars: { azimuth: number; altitude: number }[]; lines: [number, number][] }[];
   guideAzimuth: number | null;
   showIssTrack: boolean;
   guidedId: string | null;
+  hunt: { id: string; azimuth: number; altitude: number } | null;
   onSelect: (id: string) => void;
 }) {
   const frameRef = useRef<HTMLDivElement>(null);
@@ -87,16 +101,29 @@ export function SkyOverlay({
   const horizon = size.width
     ? projectBody(heading, 0, heading, viewAltitude, size.width, size.height)
     : null;
-  const visible = objects.filter((object) => object.isAboveHorizon && object.id !== "sun");
+  const hunting = hunt != null;
+  const visible = objects.filter((object) => {
+    if (!object.isAboveHorizon || object.id === "sun") return false;
+    if (hunting) return object.id === hunt.id;
+    return true;
+  });
+  const drawnFigures = hunting ? figures.filter((figure) => figure.id === hunt.id) : figures;
+  const huntMark =
+    hunting && size.width
+      ? projectBody(hunt.azimuth, hunt.altitude, heading, viewAltitude, size.width, size.height)
+      : null;
+  const locked = Boolean(huntMark && huntMark.inView && huntMark.degreesAway < 9);
   const placed: { left: number; top: number }[] = [];
 
   return (
     <div ref={frameRef} className="relative h-full w-full">
-      <div
-        className="milky"
-        style={{ transform: `translateX(${-(((heading % 360) / 360) * 28)}%) rotate(-16deg)` }}
-        aria-hidden
-      />
+      {hunting ? null : (
+        <div
+          className="milky"
+          style={{ transform: `translateX(${-(((heading % 360) / 360) * 28)}%) rotate(-16deg)` }}
+          aria-hidden
+        />
+      )}
       {horizon && horizon.y > -20 && horizon.y < size.height + 20 ? (
         <>
           <div className="horizon-ground" style={{ top: horizon.y }} aria-hidden>
@@ -105,15 +132,23 @@ export function SkyOverlay({
           <div className="horizon-line" style={{ top: horizon.y }} aria-hidden />
         </>
       ) : null}
-      {size.width && figures.length
-        ? figures.map((figure) => {
+      {size.width && drawnFigures.length
+        ? drawnFigures.map((figure) => {
             const projected = figure.stars.map((star) =>
               projectBody(star.azimuth, star.altitude, heading, viewAltitude, size.width, size.height),
             );
             const showLines = constellationView === "lines" || constellationView === "figures" || constellationView === "full";
             const showDots = constellationView === "stars" || constellationView === "full" || constellationView === "lines";
+            const labeled = projected.filter((point) => point.inView);
+            const label = labeled.length
+              ? {
+                  x: labeled.reduce((sum, point) => sum + point.x, 0) / labeled.length,
+                  y: labeled.reduce((sum, point) => sum + point.y, 0) / labeled.length,
+                }
+              : null;
             return (
-              <svg key={figure.id} className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden>
+              <div key={figure.id} className="pointer-events-none absolute inset-0 text-[var(--sky-ink)]">
+              <svg className="absolute inset-0 h-full w-full" aria-hidden>
                 {showLines
                   ? figure.lines.map(([from, to]) => {
                       const a = projected[from];
@@ -128,7 +163,7 @@ export function SkyOverlay({
                           y1={a.y}
                           x2={b.x}
                           y2={b.y}
-                          stroke="rgba(242,242,247,0.72)"
+                          stroke="currentColor"
                           strokeWidth="1.25"
                         />
                       );
@@ -137,11 +172,22 @@ export function SkyOverlay({
                 {showDots
                   ? projected.map((point, index) =>
                       point.degreesAway > 70 ? null : (
-                        <circle key={index} cx={point.x} cy={point.y} r={1.6} fill="rgba(242,242,247,0.92)" />
+                        <circle key={index} cx={point.x} cy={point.y} r={1.6} fill="currentColor" />
                       ),
                     )
                   : null}
               </svg>
+              {label ? (
+                <button
+                  type="button"
+                  className="sky-label pointer-events-auto absolute -translate-x-1/2 -translate-y-1/2"
+                  style={{ left: label.x, top: label.y + 14 }}
+                  onClick={() => onSelect(figure.id)}
+                >
+                  {figure.name}
+                </button>
+              ) : null}
+              </div>
             );
           })
         : null}
@@ -197,6 +243,7 @@ export function SkyOverlay({
             );
           })
         : null}
+      {hunting ? <HuntReticle locked={locked} /> : null}
     </div>
   );
 }

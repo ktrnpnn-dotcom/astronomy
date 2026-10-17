@@ -11,7 +11,9 @@ export interface StickFigure {
   lines: [number, number][];
 }
 
-export const STICK_FIGURES: StickFigure[] = [
+import { EXTRA_FIGURES } from "@/data/extraFigures";
+
+export const NORTHERN_FIGURES: StickFigure[] = [
   {
     id: "uma",
     name: "Большая Медведица",
@@ -282,3 +284,5 @@ export const STICK_FIGURES: StickFigure[] = [
     ],
   },
 ];
+
+export const STICK_FIGURES: StickFigure[] = [...NORTHERN_FIGURES, ...EXTRA_FIGURES];

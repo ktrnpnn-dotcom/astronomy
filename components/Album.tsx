@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Lock, Share, Trash2, X } from "lucide-react";
+import { HudReveal } from "@/components/HudReveal";
 import { ObjectDisc } from "@/components/ObjectDisc";
 import { formatDay } from "@/lib/format";
 import type { Observation } from "@/types/sky";
@@ -81,14 +82,14 @@ export function Album({
   }
 
   return (
-    <div className="screen">
+    <HudReveal className="screen">
       <div className="flex items-end justify-between gap-3">
-        <h1 className="large-title">Альбом</h1>
+        <h1 className="large-title" data-hud>Альбом</h1>
         <button type="button" className="btn-text" onClick={() => void shareAll()}>
           Поделиться
         </button>
       </div>
-      <p className="subhead mt-2 text-[var(--muted)]">Закрытые листы ждут первую отметку. Открытые можно покрутить.</p>
+      <p className="subhead mt-2 text-[var(--muted)]" data-hud>Закрытые листы ждут первую отметку. Открытые можно покрутить.</p>
       {photos.length ? (
         <div className="album-grid mt-6">
           {photos.map((item) => (
@@ -108,7 +109,7 @@ export function Album({
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="footnote text-[var(--muted)]">{record ? formatDay(new Date(record.at)) : "закрыто"}</p>
-                  <h2 className="title-2 mt-1">{sheet.title}</h2>
+                  <h2 className="title-2 mt-1" data-hud>{sheet.title}</h2>
                   <p className="subhead mt-2">{record ? record.note : sheet.hint}</p>
                   {record ? <p className="footnote mt-2 text-[var(--muted)]">{record.place}</p> : null}
                 </div>
@@ -166,6 +167,6 @@ export function Album({
             document.body,
           )
         : null}
-    </div>
+    </HudReveal>
   );
 }

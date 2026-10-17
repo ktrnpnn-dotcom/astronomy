@@ -1,5 +1,6 @@
 "use client";
 
+import { HudReveal } from "@/components/HudReveal";
 import { ConstellationSample } from "@/components/ConstellationSample";
 import { ObjectDisc } from "@/components/ObjectDisc";
 import { CITIES } from "@/lib/cities";
@@ -26,9 +27,9 @@ export function ProfileScreen({
   const city = CITIES.find((item) => item.id === cityId)?.name ?? "Москва";
   const rank = rankFor(sightings);
   return (
-    <div className="screen pb-10">
-      <h1 className="large-title">Профиль</h1>
-      <p className="subhead mt-2 text-[var(--muted)]">
+    <HudReveal className="screen pb-10">
+      <h1 className="large-title" data-hud>Профиль</h1>
+      <p className="subhead mt-2 text-[var(--muted)]" data-hud>
         {rank.name}
         {rank.next ? ` · дальше ${rank.next}` : ""}
       </p>
@@ -40,8 +41,8 @@ export function ProfileScreen({
         </button>
         <div className="card flex items-center justify-between gap-3">
           <div>
-            <p className="headline">Ночное зрение</p>
-            <p className="footnote mt-1 text-[var(--muted)]">Тусклый красный, чтобы глаза оставались в темноте.</p>
+            <p className="headline" data-hud>Ночное зрение</p>
+            <p className="footnote mt-1 text-[var(--muted)]" data-hud>Тусклый красный, чтобы глаза оставались в темноте.</p>
           </div>
           <button
             type="button"
@@ -55,8 +56,8 @@ export function ProfileScreen({
           </button>
         </div>
         <div className="card">
-          <p className="headline">Созвездия на карте</p>
-          <p className="footnote mt-1 text-[var(--muted)]">На карте тот вид, который выбран здесь.</p>
+          <p className="headline" data-hud>Созвездия на карте</p>
+          <p className="footnote mt-1 text-[var(--muted)]" data-hud>На карте тот вид, который выбран здесь.</p>
           <div className="mt-3 grid grid-cols-2 gap-2">
             {CONSTELLATION_STEPS.map((item) => {
               const selected = constellationView === item.id;
@@ -89,6 +90,6 @@ export function ProfileScreen({
           <ObjectDisc kind="meteor" size={72} spin />
         </div>
       </section>
-    </div>
+    </HudReveal>
   );
 }

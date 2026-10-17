@@ -3,17 +3,19 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { MapPin, X } from "lucide-react";
+import { HudReveal } from "@/components/HudReveal";
 import { ObjectDisc } from "@/components/ObjectDisc";
+import { StudyList } from "@/components/StudyList";
 import { eventAt, ORIONIDS_ID, WEEK_ITEMS, type WeekItem } from "@/data/weekSky";
 import { getSkyObjects, twilightName } from "@/lib/astronomy";
 import { formatClock, formatStoryWhen } from "@/lib/format";
-import { readCloud, type CloudReport } from "@/lib/weather";
 import type { Observation } from "@/types/sky";
 
 export function TodayFeed({
   cityName,
   latitude,
   longitude,
+  cloudy,
   quietNewsIds,
   observations,
   onChangeCity,
@@ -24,6 +26,7 @@ export function TodayFeed({
   cityName: string;
   latitude: number;
   longitude: number;
+  cloudy: boolean;
   quietNewsIds: string[];
   observations: Observation[];
   onChangeCity: () => void;
@@ -32,7 +35,6 @@ export function TodayFeed({
   onSeenNews: (item: WeekItem) => void;
 }) {
   const [now, setNow] = useState<Date | null>(null);
-  const [cloud, setCloud] = useState<CloudReport | null>(null);
   const [storyIndex, setStoryIndex] = useState<number | null>(null);
   const [storyProgress, setStoryProgress] = useState(0);
   const [seenStories, setSeenStories] = useState<string[]>([]);
@@ -43,16 +45,6 @@ export function TodayFeed({
     const id = window.setInterval(update, 30000);
     return () => window.clearInterval(id);
   }, []);
-
-  useEffect(() => {
-    let alive = true;
-    void readCloud(latitude, longitude).then((report) => {
-      if (alive) setCloud(report);
-    });
-    return () => {
-      alive = false;
-    };
-  }, [latitude, longitude]);
 
   useEffect(() => {
     if (storyIndex == null) return;
@@ -94,7 +86,6 @@ export function TodayFeed({
   const feature = WEEK_ITEMS.find((item) => item.id === ORIONIDS_ID);
   const featureQuiet = quietNewsIds.includes(ORIONIDS_ID);
   const playing = storyIndex == null ? null : WEEK_ITEMS[storyIndex];
-  const cloudy = cloud?.cloudy === true;
   const seenToday = now
     ? observations.filter((item) => item.seen && item.at.slice(0, 10) === now.toISOString().slice(0, 10)).length
     : 0;
@@ -111,21 +102,33 @@ export function TodayFeed({
   }
 
   return (
-    <div className="screen">
+    <HudReveal className="screen">
       <header className="flex items-center justify-between">
         <button type="button" className="btn-quiet -ml-2 gap-1 px-2" onClick={onChangeCity} aria-label="Сменить локацию">
           <MapPin size={18} strokeWidth={1.7} aria-hidden />
-          <span>{cityName}</span>
+          <span data-hud>{cityName}</span>
         </button>
       </header>
 
-      <p className="footnote mt-4 text-[var(--muted)]">{twilight}{now ? ` · ${formatClock(now)}` : ""}</p>
+      <p className="footnote mt-4 text-[var(--muted)]" data-hud>{twilight}{now ? ` · ${formatClock(now)}` : ""}</p>
 
       {cloudy ? (
-        <article className="hero-night mt-4">
-          <p className="headline">Сейчас наблюдать не получится</p>
-          <p className="subhead mt-2 text-[var(--muted)]">Небо закрыто облаками. Ниже то, что можно поймать в ближайшие дни.</p>
-        </article>
+        <>
+          <article className="hero-night mt-4">
+            <p className="headline" data-hud>Небо закрыто облаками</p>
+            <p className="subhead mt-2 text-[var(--muted)]" data-hud>
+              Сторис спрятаны, пока облачность плотная. Можно всё равно выбрать цель и искать её на карте.
+            </p>
+          </article>
+          {now ? (
+            <StudyList
+              latitude={latitude}
+              longitude={longitude}
+              now={now}
+              onPick={(id, azimuth) => onShowSky(id, azimuth)}
+            />
+          ) : null}
+        </>
       ) : (
         <>
           <div className="stories mt-4" aria-label="На этой неделе">
@@ -142,23 +145,23 @@ export function TodayFeed({
                   </span>
                 </span>
                 <span className="story-copy">
-                  <span className="story-name">{item.story}</span>
-                  <span className="story-time">{now ? formatStoryWhen(eventAt(item, now), now) : ""}</span>
+                  <span className="story-name" data-hud>{item.story}</span>
+                  <span className="story-time" data-hud>{now ? formatStoryWhen(eventAt(item, now), now) : ""}</span>
                 </span>
               </button>
             ))}
           </div>
           {feature && !featureQuiet ? (
             <article className="hero-night hero-sky mt-6">
-              <p className="footnote text-[var(--good)]">Сейчас стоит посмотреть вверх</p>
+              <p className="footnote text-[var(--good)]" data-hud>Сейчас стоит посмотреть вверх</p>
               <div className="mt-3 flex items-end justify-between gap-3">
                 <div>
-                  <h1 className="title-2">{feature.title}</h1>
-                  <p className="subhead mt-1">{feature.look}</p>
+                  <h1 className="title-2" data-hud>{feature.title}</h1>
+                  <p className="subhead mt-1" data-hud>{feature.look}</p>
                 </div>
                 <ObjectDisc kind={feature.kind} size={84} spin />
               </div>
-              <p className="footnote mt-3 text-[var(--muted)]">{feature.guide}</p>
+              <p className="footnote mt-3 text-[var(--muted)]" data-hud>{feature.guide}</p>
               <div className="mt-3 grid grid-cols-2">
                 <button type="button" className="btn-text" onClick={() => onSeenNews(feature)}>
                   Вижу
@@ -174,17 +177,17 @@ export function TodayFeed({
             </article>
           ) : (
             <article className="hero-night mt-6">
-              <p className="footnote text-[var(--good)]">Сейчас стоит посмотреть вверх</p>
+              <p className="footnote text-[var(--good)]" data-hud>Сейчас стоит посмотреть вверх</p>
               <div className="mt-3 flex items-end justify-between gap-3">
                 <div>
-                  <h1 className="title-2">Сегодня как обычно Луна</h1>
-                  <p className="subhead mt-1">
+                  <h1 className="title-2" data-hud>Сегодня как обычно Луна</h1>
+                  <p className="subhead mt-1" data-hud>
                     {moon?.phaseName ? `${moon.phaseName}${moon.illumination != null ? `, ${Math.round(moon.illumination * 100)}%` : ""}` : "Крупный светлый диск"}
                   </p>
                 </div>
                 <ObjectDisc kind="moon" size={92} spin />
               </div>
-              <p className="footnote mt-3 text-[var(--muted)]">
+              <p className="footnote mt-3 text-[var(--muted)]" data-hud>
                 {moon?.isAboveHorizon ? "Диск уже над горизонтом." : "Диск появится позже."} Новости недели остаются в сторис.
               </p>
               <button type="button" className="btn btn-line mt-4 w-full" onClick={() => onShowSky("moon", moon?.azimuth ?? 0)}>
@@ -233,6 +236,6 @@ export function TodayFeed({
             document.body,
           )
         : null}
-    </div>
+    </HudReveal>
   );
 }

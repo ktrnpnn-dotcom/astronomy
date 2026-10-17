@@ -1,5 +1,11 @@
 import type { Metadata, Viewport } from "next";
+import { IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
+
+const plex = IBM_Plex_Mono({
+  subsets: ["latin", "cyrillic"],
+  weight: ["400", "600"],
+});
 
 export const metadata: Metadata = {
   title: "Небо сейчас",
@@ -24,13 +30,13 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#07080a",
+  themeColor: "#020402",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="ru" className="h-full">
-      <body className="min-h-full">{children}</body>
+    <html lang="ru" className={`h-full ${plex.className}`}>
+      <body className={`min-h-full ${plex.className}`}>{children}</body>
     </html>
   );
 }

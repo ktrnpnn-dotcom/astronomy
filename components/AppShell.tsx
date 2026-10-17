@@ -12,6 +12,7 @@ import type { WeekItem } from "@/data/weekSky";
 import { startLiveSession, stopStream, type LiveSession } from "@/lib/camera";
 import { CITIES, cityById } from "@/lib/cities";
 import { getSettingsServerSnapshot, getSettingsSnapshot, patchSettings, subscribeSettings } from "@/lib/storage";
+import { readCloud } from "@/lib/weather";
 import type { GeoFix, Observation, SkyError } from "@/types/sky";
 
 type Phase = "intro" | "pending" | "error" | "view";
@@ -28,6 +29,7 @@ export function AppShell() {
   const [focusId, setFocusId] = useState<string | null>(null);
   const [cityOpen, setCityOpen] = useState(false);
   const [resumeAfterCity, setResumeAfterCity] = useState(false);
+  const [cloudy, setCloudy] = useState(false);
   const origin = useRef<TabId>("map");
   const sessionRef = useRef<LiveSession | null>(null);
 
@@ -50,6 +52,16 @@ export function AppShell() {
   }, []);
 
   const city = cityById(settings.cityId);
+
+  useEffect(() => {
+    let alive = true;
+    void readCloud(city.latitude, city.longitude).then((report) => {
+      if (alive && report) setCloudy(report.cloudy);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [city.latitude, city.longitude]);
   const place = session?.coords ?? cityFix(city.name, city.latitude, city.longitude);
 
   function leaveMap() {
@@ -62,7 +74,11 @@ export function AppShell() {
 
   function changeTab(next: TabId) {
     if (next !== "map") leaveMap();
-    if (next === "map") origin.current = "map";
+    if (next === "map") {
+      origin.current = "map";
+      setFocusId(null);
+      setGuideAzimuth(null);
+    }
     setTab(next);
   }
 
@@ -167,6 +183,7 @@ export function AppShell() {
             cityName={city.name}
             latitude={city.latitude}
             longitude={city.longitude}
+            cloudy={cloudy}
             quietNewsIds={settings.quietNewsIds}
             observations={settings.observations}
             onChangeCity={() => {
@@ -191,7 +208,7 @@ export function AppShell() {
             stream={session?.stream ?? null}
             coords={demo ? null : place}
             placeLabel={place.label}
-            cloudy={false}
+            cloudy={cloudy}
             focusId={focusId}
             guideAzimuth={guideAzimuth}
             constellationView={settings.constellationView}

@@ -1,6 +1,6 @@
-:HL["/astronomy/_next/static/chunks/0yn4ncktk_1qy.css","style"]
+:HL["/astronomy/_next/static/chunks/2p6298hzjac-s.css","style"]
 :HL["/astronomy/_next/static/media/51430d34a2dfca2f-s.p.3de9nsjscz49m.woff2","font",{"crossOrigin":"","type":"font/woff2"}]
 :HL["/astronomy/_next/static/media/59b15b4bcd7b1eb5-s.p.2vemzm0itqzfy.woff2","font",{"crossOrigin":"","type":"font/woff2"}]
 :HL["/astronomy/_next/static/media/99e609270109b47d-s.p.40sczeszzbjw1.woff2","font",{"crossOrigin":"","type":"font/woff2"}]
 :HL["/astronomy/_next/static/media/e9d5b069f63ab620-s.p.43bojm9sp3v_v.woff2","font",{"crossOrigin":"","type":"font/woff2"}]
-0:{"tree":{"name":"","param":null,"prefetchHints":4176,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":4256,"slots":null}}},"staleTime":300,"buildId":"2KBWbxkX-1kS675YBfbpb"}
+0:{"tree":{"name":"","param":null,"prefetchHints":4176,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":4256,"slots":null}}},"staleTime":300,"buildId":"f9AFgo6boSuOBCoXaMeGQ"}

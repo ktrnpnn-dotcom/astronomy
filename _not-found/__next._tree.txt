@@ -1,2 +1,2 @@
-:HL["/astronomy/_next/static/chunks/2p6298hzjac-s.css","style"]
-0:{"tree":{"name":"","param":null,"prefetchHints":4176,"slots":{"children":{"name":"/_not-found","param":null,"prefetchHints":4192,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":4256,"slots":null}}}}},"staleTime":300,"buildId":"f9AFgo6boSuOBCoXaMeGQ"}
+:HL["/astronomy/_next/static/chunks/2zbm9amyj66u7.css","style"]
+0:{"tree":{"name":"","param":null,"prefetchHints":4176,"slots":{"children":{"name":"/_not-found","param":null,"prefetchHints":4192,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":4256,"slots":null}}}}},"staleTime":300,"buildId":"v5-fFY1uemL_ei5G-Nhdo"}

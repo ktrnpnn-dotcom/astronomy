@@ -84,7 +84,7 @@ export function Album({
   return (
     <HudReveal className="screen">
       <div className="flex items-end justify-between gap-3">
-        <h1 className="large-title" data-hud>Альбом</h1>
+        <h1 className="hud-label">Альбом</h1>
         <button type="button" className="btn-text" onClick={() => void shareAll()}>
           Поделиться
         </button>
@@ -115,8 +115,8 @@ export function Album({
                   <p className="subhead mt-2">{record ? record.note : sheet.hint}</p>
                   {record ? <p className="footnote mt-2 text-[var(--muted)]">{record.place}</p> : null}
                 </div>
-                <div className="album-body">
-                  <ObjectDisc kind={sheet.kind} size={92} spin />
+                <div className="disc-bay">
+                  <ObjectDisc kind={sheet.kind} size={72} spin />
                 </div>
               </div>
             </article>
@@ -131,7 +131,9 @@ export function Album({
                 <p className="subhead mt-2">{item.note}</p>
                 <p className="footnote mt-2 text-[var(--muted)]">{item.place}</p>
               </div>
-              <ObjectDisc kind={kindFor(item.objectId)} size={92} spin />
+              <span className="disc-bay">
+                <ObjectDisc kind={kindFor(item.objectId)} size={72} spin />
+              </span>
             </div>
           </article>
         ))}

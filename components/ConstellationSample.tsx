@@ -17,7 +17,7 @@ export function ConstellationSample({ view }: { view: ConstellationView }) {
   const points = URSA_LINE.map((index) => URSA_STARS[index].join(",")).join(" ");
   return (
     <svg className="constellation-sample" viewBox="0 0 196 136" aria-hidden>
-      <rect width="196" height="136" rx="8" fill="#07080c" />
+      <rect width="196" height="136" rx="0" fill="#000000" />
       <path d="M0 112h196v24H0z" fill="rgba(0,0,0,0.45)" />
       <path d="M0 112h196" stroke="rgba(242,242,247,0.35)" strokeWidth="0.6" />
       {FIELD.map(([x, y], index) => (

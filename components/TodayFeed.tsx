@@ -119,7 +119,7 @@ export function TodayFeed({
 
       {cloudy ? (
         <article className="mt-4">
-          <p className="headline" data-hud>Небо закрыто облаками</p>
+          <p className="hud-label" data-hud>Небо закрыто облаками</p>
           <p className="subhead mt-2 text-[var(--muted)]" data-hud>
             Сторис спрятаны, пока облачность плотная. Цель всё равно можно выбрать и искать на карте.
           </p>
@@ -147,47 +147,55 @@ export function TodayFeed({
             ))}
           </div>
           {feature && !featureQuiet ? (
-            <article className="hero-night hero-sky hud-focus mt-6">
-              <p className="footnote text-[var(--good)]" data-hud>Сейчас стоит посмотреть вверх</p>
-              <div className="mt-3 flex items-end justify-between gap-3">
-                <div>
-                  <h1 className="title-2" data-hud>{feature.title}</h1>
-                  <p className="subhead mt-1" data-hud>{feature.look}</p>
+            <article className="hero-night hero-sky hud-card mt-8">
+              <div className="hud-card-top">
+                <h1 className="hud-card-title">{feature.title}</h1>
+                <span className="hud-card-ledge" aria-hidden />
+              </div>
+              <span className="disc-bay hud-card-disc">
+                <ObjectDisc kind={feature.kind} size={72} spin />
+              </span>
+              <div className="hud-card-body">
+                <div className="hud-card-copy">
+                  <p className="subhead" data-hud>{feature.look}</p>
+                  <p className="footnote mt-2 text-[var(--muted)]" data-hud>{feature.guide}</p>
+                  <div className="mt-3 grid grid-cols-2">
+                    <button type="button" className="btn-text" onClick={() => onSeenNews(feature)}>
+                      Вижу
+                    </button>
+                    <button type="button" className="btn-text" onClick={() => onQuiet(feature.id)}>
+                      Пропустить
+                    </button>
+                  </div>
+                  <button type="button" className="btn btn-line mt-2 w-full" onClick={() => onShowSky(feature.objectId, feature.azimuth)}>
+                    Куда смотреть
+                  </button>
+                  {seenToday > 0 ? <p className="caption mt-2 text-[var(--muted)]">Сегодня вы уже отметили {seenToday}</p> : null}
                 </div>
-                <ObjectDisc kind={feature.kind} size={84} spin />
               </div>
-              <p className="footnote mt-3 text-[var(--muted)]" data-hud>{feature.guide}</p>
-              <div className="mt-3 grid grid-cols-2">
-                <button type="button" className="btn-text" onClick={() => onSeenNews(feature)}>
-                  Вижу
-                </button>
-                <button type="button" className="btn-text" onClick={() => onQuiet(feature.id)}>
-                  Пропустить
-                </button>
-              </div>
-              <button type="button" className="btn btn-line mt-2 w-full" onClick={() => onShowSky(feature.objectId, feature.azimuth)}>
-                Куда смотреть
-              </button>
-              {seenToday > 0 ? <p className="caption mt-2 text-[var(--muted)]">Сегодня вы уже отметили {seenToday}</p> : null}
             </article>
           ) : (
-            <article className="hero-night hud-focus mt-6">
-              <p className="footnote text-[var(--good)]" data-hud>Сейчас стоит посмотреть вверх</p>
-              <div className="mt-3 flex items-end justify-between gap-3">
-                <div>
-                  <h1 className="title-2" data-hud>Сегодня как обычно Луна</h1>
-                  <p className="subhead mt-1" data-hud>
+            <article className="hero-night hud-card mt-8">
+              <div className="hud-card-top">
+                <h1 className="hud-card-title">Сегодня как обычно Луна</h1>
+                <span className="hud-card-ledge" aria-hidden />
+              </div>
+              <span className="disc-bay hud-card-disc">
+                <ObjectDisc kind="moon" size={72} spin />
+              </span>
+              <div className="hud-card-body">
+                <div className="hud-card-copy">
+                  <p className="subhead" data-hud>
                     {moon?.phaseName ? `${moon.phaseName}${moon.illumination != null ? `, ${Math.round(moon.illumination * 100)}%` : ""}` : "Крупный светлый диск"}
                   </p>
+                  <p className="footnote mt-2 text-[var(--muted)]" data-hud>
+                    {moon?.isAboveHorizon ? "Диск уже над горизонтом." : "Диск появится позже."} Новости недели остаются в сторис.
+                  </p>
+                  <button type="button" className="btn btn-line mt-4 w-full" onClick={() => onShowSky("moon", moon?.azimuth ?? 0)}>
+                    Куда смотреть
+                  </button>
                 </div>
-                <ObjectDisc kind="moon" size={92} spin />
               </div>
-              <p className="footnote mt-3 text-[var(--muted)]" data-hud>
-                {moon?.isAboveHorizon ? "Диск уже над горизонтом." : "Диск появится позже."} Новости недели остаются в сторис.
-              </p>
-              <button type="button" className="btn btn-line mt-4 w-full" onClick={() => onShowSky("moon", moon?.azimuth ?? 0)}>
-                Куда смотреть
-              </button>
             </article>
           )}
         </>
@@ -223,8 +231,10 @@ export function TodayFeed({
             onClick={() => openStory(storyIndex + 1)}
           />
           <div className="story-stage">
-            <ObjectDisc kind={playing.kind} size={168} spin />
-            <h2 className="title-2 mt-6">{playing.story}</h2>
+            <span className="disc-bay disc-bay-lg">
+              <ObjectDisc kind={playing.kind} size={148} spin />
+            </span>
+            <h2 className="hud-label mt-6">{playing.story}</h2>
             <p className="footnote mt-1 text-[var(--muted)]">{now ? formatStoryWhen(eventAt(playing, now), now) : ""}</p>
             <p className="body mt-4">{playing.look}</p>
             <p className="subhead mt-2 text-[var(--muted)]">{playing.guide}</p>

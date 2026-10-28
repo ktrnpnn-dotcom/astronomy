@@ -115,7 +115,7 @@ function paintSphere(canvas: HTMLCanvasElement, kind: DiscKind, yaw: number, siz
   if (!context) return;
   const image = context.createImageData(pixels, pixels);
   const data = image.data;
-  const radius = pixels * (kind === "saturn" ? 0.26 : 0.34);
+  const radius = pixels * (kind === "saturn" ? 0.28 : 0.38);
   const center = pixels / 2;
   const cos = Math.cos(yaw);
   const sin = Math.sin(yaw);
@@ -133,7 +133,7 @@ function paintSphere(canvas: HTMLCanvasElement, kind: DiscKind, yaw: number, siz
       const lon = Math.atan2(tx, tz);
       const lat = Math.asin(Math.max(-1, Math.min(1, ny)));
       const light = Math.max(0, nx * -0.42 + ny * -0.38 + nz * 0.82);
-      const lit = (0.16 + 0.84 * light) * (0.62 + 0.38 * nz);
+      const lit = (0.28 + 0.86 * light) * (0.72 + 0.28 * nz);
       const [r, g, b] = photo ? samplePhoto(photo, lon, lat) : surface(kind, lon, lat, light);
       const shine = photo ? light ** 28 * 22 : kind === "venus" ? light ** 14 * 90 : kind === "moon" ? light ** 40 * 18 : light ** 22 * 36;
       const rim = light * light * (1 - nz) * (kind === "venus" ? 26 : 12);
@@ -185,7 +185,7 @@ function strokeRing(context: CanvasRenderingContext2D, center: number, radius: n
 
 function phosphor() {
   const night = document.documentElement.dataset.night === "on";
-  return night ? { r: 255, g: 107, b: 116, css: "rgba(255,107,116,0.95)" } : { r: 61, g: 255, b: 232, css: "rgba(61,255,232,0.95)" };
+  return night ? { r: 255, g: 107, b: 116, css: "rgba(255,107,116,0.95)" } : { r: 46, g: 212, b: 255, css: "rgba(46,212,255,0.95)" };
 }
 
 function trace(context: CanvasRenderingContext2D, points: ({ x: number; y: number } | null)[]) {
@@ -204,7 +204,7 @@ function trace(context: CanvasRenderingContext2D, points: ({ x: number; y: numbe
   context.stroke();
 }
 
-function paintWire(canvas: HTMLCanvasElement, kind: DiscKind, yaw: number, size: number) {
+function paintWire(canvas: HTMLCanvasElement, kind: DiscKind, yaw: number, size: number, reveal = 1) {
   const ratio = Math.min(window.devicePixelRatio || 1, 2);
   const pixels = Math.max(48, Math.round(size * ratio));
   canvas.width = pixels;
@@ -212,8 +212,15 @@ function paintWire(canvas: HTMLCanvasElement, kind: DiscKind, yaw: number, size:
   const context = canvas.getContext("2d");
   if (!context) return;
   context.clearRect(0, 0, pixels, pixels);
+  if (reveal <= 0) return;
+  const scan = Math.max(2, Math.round(pixels * 0.045));
+  const clipH = Math.min(pixels, Math.ceil((pixels * Math.min(1, reveal)) / scan) * scan);
+  context.save();
+  context.beginPath();
+  context.rect(0, 0, pixels, clipH);
+  context.clip();
   const ink = phosphor();
-  const radius = pixels * (kind === "saturn" ? 0.26 : 0.34);
+  const radius = pixels * (kind === "saturn" ? 0.28 : 0.38);
   const center = pixels / 2;
   const cos = Math.cos(yaw);
   const sin = Math.sin(yaw);
@@ -301,25 +308,6 @@ function paintWire(canvas: HTMLCanvasElement, kind: DiscKind, yaw: number, size:
     }
   }
   context.globalAlpha = 1;
-  const arm = pixels * 0.07;
-  const pad = Math.max(3, pixels * 0.04);
-  context.lineWidth = Math.max(0.7, pixels * 0.008);
-  const corners: [number, number, number, number][] = [
-    [pad, pad, pad + arm, pad],
-    [pad, pad, pad, pad + arm],
-    [pixels - pad, pad, pixels - pad - arm, pad],
-    [pixels - pad, pad, pixels - pad, pad + arm],
-    [pad, pixels - pad, pad + arm, pixels - pad],
-    [pad, pixels - pad, pad, pixels - pad - arm],
-    [pixels - pad, pixels - pad, pixels - pad - arm, pixels - pad],
-    [pixels - pad, pixels - pad, pixels - pad, pixels - pad - arm],
-  ];
-  context.beginPath();
-  corners.forEach(([x1, y1, x2, y2]) => {
-    context.moveTo(x1, y1);
-    context.lineTo(x2, y2);
-  });
-  context.stroke();
   if (kind === "saturn") {
     context.save();
     context.translate(center, center);
@@ -333,11 +321,21 @@ function paintWire(canvas: HTMLCanvasElement, kind: DiscKind, yaw: number, size:
     }
     context.restore();
   }
+  context.restore();
 }
 
-function glitchWire(elapsed: number) {
+function glitchPhase(elapsed: number): { mode: "sphere" | "blank" | "wire"; reveal: number } {
   const beat = ((elapsed % 12800) + 12800) % 12800;
-  return (beat >= 90 && beat < 150) || (beat >= 210 && beat < 265) || (beat >= 640 && beat < 980);
+  const start = 640;
+  const blank = 40;
+  const load = 180;
+  const hold = 70;
+  if (beat < start) return { mode: "sphere", reveal: 1 };
+  const t = beat - start;
+  if (t < blank) return { mode: "blank", reveal: 0 };
+  if (t < blank + load) return { mode: "wire", reveal: (t - blank) / load };
+  if (t < blank + load + hold) return { mode: "wire", reveal: 1 };
+  return { mode: "sphere", reveal: 1 };
 }
 
 function paintMeteor(canvas: HTMLCanvasElement, cool: boolean, size: number, flight: number) {
@@ -442,9 +440,16 @@ export function ObjectDisc({
         if (!reduced) frame = window.requestAnimationFrame(draw);
       } else {
         if (spin && !reduced) angle.current += kind === "moon" ? 0.005 : 0.004;
-        const wire = schematic || (!reduced && glitchWire(now - started + glitchShift.current));
-        if (wire) paintWire(canvas, kind, angle.current, size);
-        else paintSphere(canvas, kind, angle.current, size, photo.current);
+        if (schematic) {
+          paintWire(canvas, kind, angle.current, size, 1);
+        } else if (reduced) {
+          paintSphere(canvas, kind, angle.current, size, photo.current);
+        } else {
+          const phase = glitchPhase(now - started + glitchShift.current);
+          if (phase.mode === "blank") paintWire(canvas, kind, angle.current, size, 0);
+          else if (phase.mode === "wire") paintWire(canvas, kind, angle.current, size, phase.reveal);
+          else paintSphere(canvas, kind, angle.current, size, photo.current);
+        }
       }
       if (!reduced && kind !== "meteor" && kind !== "dragon") frame = window.requestAnimationFrame(draw);
     };

@@ -28,7 +28,7 @@ export function ProfileScreen({
   const rank = rankFor(sightings);
   return (
     <HudReveal className="screen pb-10">
-      <h1 className="large-title" data-hud>Профиль</h1>
+      <h1 className="hud-label">Профиль</h1>
       <p className="subhead mt-2 text-[var(--muted)]" data-hud>
         {rank.name}
         {rank.next ? ` · дальше ${rank.next}` : ""}
@@ -79,15 +79,17 @@ export function ProfileScreen({
         </div>
       </div>
       <section className="mt-8">
-        <h2 className="title-2">Виджет</h2>
+        <h2 className="hud-label">Виджет</h2>
         <p className="footnote mt-2 text-[var(--muted)]">Яркий вид на рабочий стол. Персеиды бывают в августе.</p>
-        <div className="perseid-widget hud-focus mt-4">
+        <div className="perseid-widget hud-focus mt-8">
           <div>
             <p className="caption">август · после полуночи</p>
             <p className="title-2 mt-2">Персеиды</p>
             <p className="subhead mt-1">Быстрые следы на северо-востоке</p>
           </div>
-          <ObjectDisc kind="meteor" size={72} spin />
+          <span className="disc-bay">
+            <ObjectDisc kind="meteor" size={72} spin />
+          </span>
         </div>
       </section>
     </HudReveal>

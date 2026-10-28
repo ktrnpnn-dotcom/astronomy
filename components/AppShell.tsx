@@ -176,6 +176,13 @@ export function AppShell() {
 
   return (
     <div className="app-shell">
+      <svg className="hud-grain" aria-hidden preserveAspectRatio="none">
+        <filter id="hud-grain-filter" x="0" y="0" width="100%" height="100%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="4" seed="4" stitchTiles="stitch" />
+          <feColorMatrix type="saturate" values="0" />
+        </filter>
+        <rect width="100%" height="100%" filter="url(#hud-grain-filter)" />
+      </svg>
       {booting ? <Splash /> : null}
       <div className="stage">
         {tab === "today" ? (
